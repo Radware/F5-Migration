@@ -1,28 +1,68 @@
 # F5-Migration
-Migration script from F5 to Alteon
 
-- [Corrently Supported](#corrently-supported)
-- [Planed In The Future](#planed-in-the-future)
-- [Usage](#usage)
+## Table Of Contents ###
+- [Description](#description )
+- [How To Use](#how-to-use )
   * [Running Locally](#running-locally)
-  * [Using flask](#using-flask)
   * [Using Docker container](#using-docker-container)
+- [Currently Supported](#currently-supported)
+- [Planed In The Future](#planed-in-the-future)
 
-## Corrently Supported ##
-* Vlan ( requeres "Bigip_base.conf")
-* Layer3 interfaces - SelfIP ( requeres "Bigip_base.conf" )
-* Reals - Node ( requeres "Bigip.conf")
-* Groups - Pool ( requeres "Bigip.conf")
-* Health Checks - Monitor ( requeres "Bigip.conf")
-* Virts ( requeres "Bigip.conf")
-* Persistence ( requeres "Bigip.conf")
-* Management ( requeres "Bigip_base.conf")
-* Trunks / LACP ( requeres "Bigip_base.conf")
-* Static Routes ( requeres "Bigip_base.conf")
-* syslog ( requeres "Bigip_base.conf")
-* NTP ( requeres "Bigip_base.conf")
-* SNMP ( requeres "Bigip_base.conf")
-* Filters transletion from Virt ( requeres only "Bigip.conf")
+## Description ##
+The following script is used to migrate F5 Bigip configuration to Alteon configuration.<br>
+Manual use was tested on both Linux and windows client, <br>
+Docker was tested only on Linux server
+Currently we only support BigIP version 11 and above (TMSH based)<br>
+Supported Alteon versions are 32.0.0.0 and above (not tested on older versions)<br>
+The script works with both "bigip.conf" and "bigip_base.conf" refer to [Currently Supported](#currently-supported) section for full 
+
+## How To Use ##
+### Running Manually ###
+In order to use the script make sure you have installed python3
+The script uses the following modules:
+* re
+* os
+* datetime
+* tarfile
+* sys
+
+Then run local_runner.py with "bigip.conf" file as an argument<br>
+For example : 
+```
+# python local_runner.py bigip.conf
+```
+To use more than one "bigip.conf" or "bigip_base.conf" file use $val$ as delimiter between files<br>
+For example : 
+```
+# python local_runner.py bigip.conf$val$bigip_base.conf
+```
+
+### Using Docker container ###
+Download all git content ( only "local_runner.py" is not needed ),<br>
+Then build and run the container
+
+For example :
+```
+# git clone https://github.com/Radware/F5-Migration.git
+# cd F5-Migration
+# docker build -t f5_mig . && docker run -dit -p 8080:3011 --name f5_mig --restart on-failure f5_mig
+```
+
+## Currently Supported ##
+* Vlan (Bigip_base.conf)
+* Layer3 interfaces - SelfIP (Bigip_base.conf)
+* Reals - Node (Bigip.conf)
+* Groups - Pool (Bigip.conf)
+* Health Checks - Monitor (Bigip.conf)
+* Virts (Bigip.conf)
+* Persistence (Bigip.conf)
+* Management (Bigip_base.conf)
+* Trunks / LACP (Bigip_base.conf)
+* Static Routes (Bigip_base.conf)
+* syslog (Bigip_base.conf)
+* NTP (Bigip_base.conf)
+* SNMP (Bigip_base.conf)
+* Filters transletion from Virt (Bigip.conf)
 
 ## Planed In The Future ##
 * iRules
@@ -31,44 +71,3 @@ Migration script from F5 to Alteon
 * HA / Redundency
 * Route Domains / Partitions
 * GTM / Link Controller ( Link Proof / GSLB )
-
-## Usage ##
-### Running Locally ###
-Use the following components :
-1) local_runner.py
-2) f5_Mig.py
-3) app\global_variables.py ( Make sure to put the file in "app" directory )
-
-Then run local_runner.py with "bigip.conf" file as an argument
-To use more than one "bigip.conf" or "bigip_base.conf" file use $val$ as delimiter between files
-
-For example : 
-```
-# python local_runner.py bigip.conf
-```
-Or
-```
-# python local_runner.py bigip.conf$val$bigip_base.conf
-```
-
-### Using flask ###
-For webui environment download all the content of "app" directory and "browse.py" and install the following components on the server:
-1. python3
-2. python3-dev
-3. pip
-4. flask
-
-To start flask use ( 8080 is the tcp port )
-``` 
-# python3 -m flask run --host=0.0.0.0 -p 8080
-```
-
-### Using Docker container ###
-Download all git content ( only "local_runner.py" is not needed ), Then build and run the container
-
-For example :
-```
-# git clone https://github.com/Radware/F5-Migration.git
-# cd F5-Migration
-# docker build -t f5_mig . && docker run -dit -p 8080:3011 --name f5_mig --restart on-failure f5_mig
-```
