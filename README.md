@@ -2,12 +2,12 @@
 Migration script from F5 to Alteon
 
 - [Usage](#usage)
-  * [Running Localy](#running-localy)
+  * [Running Locally](#running-locally)
   * [Using flask](#using-flask)
   * [Using Docker container](#using-docker-container)
 
 ## Usage ##
-### Running Localy ###
+### Running Locally ###
 Use the following components :
 1) local_runner.py
 2) f5_Mig.py
@@ -26,7 +26,7 @@ Or
 ```
 
 ### Using flask ###
-For webui enviorement download all the content of "app" directory and "browse.py" and install the following components on the server:
+For webui environment download all the content of "app" directory and "browse.py" and install the following components on the server:
 1. python3
 2. python3-dev
 3. pip
@@ -38,7 +38,7 @@ To start flask use ( 8080 is the tcp port )
 ```
 
 ### Using Docker container ###
-Download all git contenet ( only "local_runner.py" is not needed ), Then build and run the container
+Download all git content ( only "local_runner.py" is not needed ), Then build and run the container
 
 For example :
 ```
