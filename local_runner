@@ -1,0 +1,4 @@
+import sys
+from f5_mig.py import *
+
+fun_f5_mig(sys.argv[1], 'local', 0)
