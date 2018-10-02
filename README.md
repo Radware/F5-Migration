@@ -3,15 +3,14 @@
 ## Table Of Contents ###
 - [Description](#description )
 - [How To Use](#how-to-use )
-  * [Running Locally](#running-locally)
+  * [Running Manually](#running-manually)
   * [Using Docker container](#using-docker-container)
 - [Currently Supported](#currently-supported)
 - [Planed In The Future](#planed-in-the-future)
 
 ## Description ##
 The following script is used to migrate F5 Bigip configuration to Alteon configuration.<br>
-Manual use was tested on both Linux and windows client, <br>
-Docker was tested only on Linux server
+Manual use was tested on both Linux and windows client, Docker was tested only on Linux server<br>
 Currently we only support BigIP version 11 and above (TMSH based)<br>
 Supported Alteon versions are 32.0.0.0 and above (not tested on older versions)<br>
 The script works with both "bigip.conf" and "bigip_base.conf" refer to [Currently Supported](#currently-supported) section for full 
