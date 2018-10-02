@@ -1,10 +1,36 @@
 # F5-Migration
 Migration script from F5 to Alteon
 
+- [Corrently Supported](#corrently-supported)
+- [Planed In The Future](#planed-in-the-future)
 - [Usage](#usage)
   * [Running Locally](#running-locally)
   * [Using flask](#using-flask)
   * [Using Docker container](#using-docker-container)
+
+## Corrently Supported ##
+* Vlan ( requeres "Bigip_base.conf")
+* Layer3 interfaces - SelfIP ( requeres "Bigip_base.conf" )
+* Reals - Node ( requeres "Bigip.conf")
+* Groups - Pool ( requeres "Bigip.conf")
+* Health Checks - Monitor ( requeres "Bigip.conf")
+* Virts ( requeres "Bigip.conf")
+* Persistence ( requeres "Bigip.conf")
+* Management ( requeres "Bigip_base.conf")
+* Trunks / LACP ( requeres "Bigip_base.conf")
+* Static Routes ( requeres "Bigip_base.conf")
+* syslog ( requeres "Bigip_base.conf")
+* NTP ( requeres "Bigip_base.conf")
+* SNMP ( requeres "Bigip_base.conf")
+* Filters transletion from Virt ( requeres only "Bigip.conf")
+
+## Planed In The Future ##
+* iRules
+* Dynamic Routes
+* Text modification ( transletion from stream profile )
+* HA / Redundency
+* Route Domains / Partitions
+* GTM / Link Controller ( Link Proof / GSLB )
 
 ## Usage ##
 ### Running Locally ###
