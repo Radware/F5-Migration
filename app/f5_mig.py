@@ -235,11 +235,11 @@ def fun_f5_mig( filename, project_name, mode):
 				hc='icmp'
 		return hc,log_write
 
-	#############
-	#			#
-	#	Nodes 	#
-	#			#
-	#############
+	#################
+	#		#
+	#	Nodes	#
+	#		#
+	#################
 
 	def realParser(text):
 		if len(nodeDict.keys()) != 0:
@@ -278,11 +278,11 @@ def fun_f5_mig( filename, project_name, mode):
 			if rd!='Common':
 				log_write.append(' Object type: Real \n Object name: '+name+' \n Issue: Found Route Domain conifuration! using RD=%s, Please address it manually!\n')
 		return log_write,log_unhandeled
-	#############
-	#			#
+	#################
+	#		#
 	#	Pools 	#
-	#			#
-	#############
+	#		#
+	#################
 
 	def groupParser(text):
 		if len(poolDict.keys()) != 0:
@@ -357,10 +357,36 @@ def fun_f5_mig( filename, project_name, mode):
 				for line in ''.join(member[:-1]).splitlines():
 					# print (line)
 					if line.replace(' ','')[0:7] == 'monitor':
-						if '/' in line :
-							junk, rd, mon=line.replace(' {', '').split('/')
-						else:
-							mon=re.sub(r'^monitor (.+)',r'\1', line)
+						if "and" in line:
+							hc=name+'_logexp'
+							hc_descrip=hc[:32]
+							if len(hc) > 32:
+								hc_id+=1
+								long_names_dict.update({hc: hc_id})
+								hc=hc_id
+							monitorDict.update({hc: {'name': hc_descrip, 'type': 'logexp', 'advtype':{'expr': ''}}})
+							tmphc=''
+							for x in line.split(' and '):
+								if '/' in x :
+									junk, tmprd, tmphc=x.split('/')
+									if tmprd!='Common':
+										log_write.append(' Object type: Group \n Object name: '+name+' \n Issue: Found Route Domain conifuration! using RD=%s, Please address it manually!\n')
+								elif '    monitor ' in x:
+									tmphc=x.replace('    monitor ','')
+								else:
+									tmphc=x
+
+								tmphc, log_write=fun_hc_long_name(tmphc, name, log_write)
+
+								if monitorDict[hc]['advtype']['expr'] == '':
+									monitorDict[hc]['advtype'].update( {'expr':monitorDict[hc]['advtype']['expr']+'('+str(tmphc)+')'} )
+								else:
+									monitorDict[hc]['advtype'].update( {'expr':monitorDict[hc]['advtype']['expr']+'&('+str(tmphc)+')'} )
+						else:			
+							if '/' in line :
+								junk, rd, mon=line.replace(' {', '').split('/')
+							else:
+								mon=re.sub(r'^monitor (.+)',r'\1', line)
 						
 						mon, log_write=fun_hc_long_name(mon, name, log_write)
 
@@ -462,11 +488,11 @@ def fun_f5_mig( filename, project_name, mode):
 		return log_write,log_unhandeled
 
 
-	#####################
-	#					#
+	#########################
+	#			#
 	#	Health Checks 	#
-	#					#
-	#####################
+	#			#
+	#########################
 
 	def healthCheckParser(text):
 		global hc_id
@@ -604,11 +630,11 @@ def fun_f5_mig( filename, project_name, mode):
 				monitorDict.update({name:new_hc})
 		return log_write,log_unhandeled
 
-	#################
-	#				#
+	#########################
+	#			#
 	#	Prpfiles 	#
-	#				#
-	#################
+	#			#
+	#########################
 
 	def profParser(text):
 		if len(profDict.keys()) != 0:
@@ -637,11 +663,11 @@ def fun_f5_mig( filename, project_name, mode):
 				log_write.append(' Object type: Profile \n Object name: %s \n Issue: Found Route Domain conifuration! using RD=%s, Please address it manually!\n' % ( name, rd))
 		return log_write,log_unhandeled
 
-	#################
-	#				#
+	#########################
+	#			#
 	#	persist 	#
-	#				#
-	#################
+	#			#
+	#########################
 
 	def persistParser(text):
 		if len(persistDict.keys()) != 0:
@@ -678,11 +704,11 @@ def fun_f5_mig( filename, project_name, mode):
 		return log_write,log_unhandeled
 
 
-	#############
-	#			#
+	#################
+	#		#
 	#	Virts  	#
-	#			#
-	#############
+	#		#
+	#################
 
 	def virtParser(text):
 		global to_filter_list
@@ -840,11 +866,11 @@ def fun_f5_mig( filename, project_name, mode):
 				del virtDict[name]
 		return log_write,log_unhandeled
 
-	#############
-	#			#
+	#################
+	#		#
 	#	Vlans	#
-	#			#
-	#############
+	#		#
+	#################
 
 	def vlanParser(text):
 		if len(vlanDict.keys()) != 0:
@@ -917,11 +943,11 @@ def fun_f5_mig( filename, project_name, mode):
 			#vlanDict.update( {name: {'tag': vid, 'interfaces': ifList}} )
 			
 
-	#####################
-	#					#
+	#########################
+	#			#
 	#	Interface IP 	#
-	#					#
-	#####################
+	#			#
+	#########################
 
 	def selfip_parser(text):
 		global if_id
