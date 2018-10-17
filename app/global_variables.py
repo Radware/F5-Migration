@@ -1,4 +1,5 @@
 route_list = []
+compres_id = 0
 if_id = 0
 hc_id = 0
 gw_id = 0
