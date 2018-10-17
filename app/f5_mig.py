@@ -10,6 +10,7 @@ from app.global_variables import *
 
 def fun_f5_mig( filename, project_name, mode):
 	global route_list
+	global compres_id
 	global if_id
 	global hc_id
 	global gw_id
@@ -41,6 +42,7 @@ def fun_f5_mig( filename, project_name, mode):
 
 	def fun_create_empty_dits():
 		global filter_dict
+		global compres_dict
 		global persistDict
 		global gw_dict
 		global profDict
@@ -58,6 +60,7 @@ def fun_f5_mig( filename, project_name, mode):
 		global mng_dict
 		global to_filter_list
 		filter_dict = {}
+		compres_dict = {}
 		persistDict = {}
 		gw_dict = {}
 		profDict = {}
@@ -501,7 +504,7 @@ def fun_f5_mig( filename, project_name, mode):
 
 		log_write=[]
 		log_unhandeled=[]
-
+		
 		for monitor in re.findall('(^ltm monitor.+{\n(  .+\n)+^})', text, re.MULTILINE):
 			strMonitor=''.join(monitor)
 			x1,x2 = strMonitor.splitlines()[0].replace('ltm monitor ', '').replace('Common', '').split(' ')[0:2]
@@ -637,6 +640,7 @@ def fun_f5_mig( filename, project_name, mode):
 	#########################
 
 	def profParser(text):
+		global compres_id
 		if len(profDict.keys()) != 0:
 			return [],[]
 
@@ -644,21 +648,33 @@ def fun_f5_mig( filename, project_name, mode):
 		log_unhandeled=[]
 
 		for profile in re.findall('(^ltm profile.+{\n(  .+\n)+^})', text, re.MULTILINE):
-			for line in ''.join(profile[:-1]).splitlines():
-				if "ltm profile" in line:
-					line=line.replace('ltm profile ', '').replace(' {', '')
-					#print(line)
-					if '/' in line:
-						profType, rd, name = line.replace(' ','').split('/')
-					else:
-						#print(line)
-						profType, name = line.replace('  ','').split(' ')
-						rd='Common'
-					profDict.update({name: {'type':profType, 'adv': {}}})
-				elif 'insert-xforwarded-for' in line:
-					profDict[name].update({'adv': {'/http/xforward': 'ena'}})
-					#print (line)
-				# Continue Profile Parser!
+			str_profile=''.join(profile[:-1])
+			prof=str_profile.splitlines()[0].replace('ltm profile ', '').replace(' {', '')
+			# print(prof)
+			if '/' in prof:
+				profType, rd, name = prof.replace(' ','').split('/')
+			else:
+				profType, name = prof.replace('  ','').split(' ')
+				rd='Common'
+			profDict.update({name: {'type':profType, 'adv': {}}})
+			# print(profType)
+			
+			if profType=='http':
+				for line in str_profile.splitlines():
+					if 'insert-xforwarded-for' in line:
+						profDict[name].update({'adv': {'/http/xforward': 'ena'}})
+			elif profType=='http-compression':
+				profName=name
+				if len(profName)>31:
+					compres_id+=1
+					log_write.append(' Object type: Compression Profile \n Object name: %s \n Issue: Name is too long, changed to ID: %d\n' % (name, compres_id))
+					long_names_dict.update({profName: compres_id})
+					profName=compres_id
+				compres_dict.update({profName:{'virt':[]}})
+				for line in str_profile.splitlines():
+					if 'content-type-include' in line:
+						compres_dict[profName].update({'brwslist': list(filter(None, line.replace('content-type-include {','').split()))[:-1]})
+			# Continue Profile Parser!
 			if rd!='Common':
 				log_write.append(' Object type: Profile \n Object name: %s \n Issue: Found Route Domain conifuration! using RD=%s, Please address it manually!\n' % ( name, rd))
 		return log_write,log_unhandeled
@@ -826,6 +842,10 @@ def fun_f5_mig( filename, project_name, mode):
 					profType=profDict[profName]['type']
 					for z in profDict[profName]['adv']:
 						virtDict[name]['adv'].update({z:profDict[profName]['adv'][z]})
+					if profType=='http-compression':
+						if profName in long_names_dict:
+							profName=long_names_dict[profName]
+						compres_dict[profName]['virt'].append(name+'##=##'+dport)
 				elif profName in defProfDict:
 					profType=defProfDict[profName]
 				else:
@@ -845,6 +865,7 @@ def fun_f5_mig( filename, project_name, mode):
 					virtDict[name].update({'ssl': {'fe': 'ena'}})
 				elif profType == 'server-ssl':
 					virtDict[name].update({'ssl': {'be': 'ena'}})
+				
 
 			for line in strPersist.splitlines():
 				if '/' in line:
@@ -861,7 +882,8 @@ def fun_f5_mig( filename, project_name, mode):
 						log_write.append(' Object type: Virt \n Object name: %s \n Issue: required unknown persistance profile: %s, please address manually\n' % (name, line))
 				else:
 					log_unhandeled.append(' Object type: Virt \n Object name: %s \n Line: %s\n' % (name, line))
-
+				if virtDict[name]['persist']['type']=='ssl':
+					virtDict[name].update({'aplic': 'ssl'})
 			if delVirt:
 				del virtDict[name]
 		return log_write,log_unhandeled
@@ -1416,7 +1438,7 @@ def fun_f5_mig( filename, project_name, mode):
 		f=open(file, 'r')
 		fun_parsers_runner(f.read())
 		f.close()
-
+		
 	for x in nodeDict:
 		return_string+=("\n/c/slb/real %s\n    ena\n" % (x))
 		out.write ("\n/c/slb/real %s\n    ena\n" % (x))
@@ -1542,6 +1564,33 @@ def fun_f5_mig( filename, project_name, mode):
 			elif 'be' in virtDict[x]['ssl']:
 				return_string+=('/c/slb/ssl/sslpol %s/fessl d/backend/ssl e\n/c/slb/virt %s/service %s %s/ssl/sslpol %s\n' % (x[:32], x, virtDict[x]['dport'], virtDict[x]['aplic'],x[:32]))
 				out.write ('/c/slb/ssl/sslpol %s/fessl d/backend/ssl e\n/c/slb/virt %s/service %s %s/ssl/sslpol %s\n' % (x[:32], x, virtDict[x]['dport'], virtDict[x]['aplic'],x[:32]))	
+	
+	for x in compres_dict:
+		# print('/c/slb/accel/compress/comppol %s' % x)
+		out.write('/c/slb/accel/compress/comppol %s' % x)
+		for y in compres_dict[x]:
+			if y=='virt':
+				for z in compres_dict[x][y]:
+					virt, service=z.split('##=##')
+					# print( '/c/slb/virt %s/service %s/http/comppol %s' % (virt, service, x))
+					out.write( '/c/slb/virt %s/service %s/http/comppol %s' % (virt, service, x))
+			elif y=='brwslist':
+				c=0
+				for z in compres_dict[x][y]:
+					c+=1
+					# print('/c/slb/accel/compress/brwslist %s/rule %d' % (x, c))
+					out.write('/c/slb/accel/compress/brwslist %s/rule %d' % (x, c))
+					if z[0]=='"':
+						# print ('    contentm regex')
+						out.write ('    contentm regex')
+						z=z.replace('"','')
+					# print('    content "%s"' % z)
+					out.write('    content "%s"' % z)
+				# print('/c/slb/accel/compress/comppol %s/brwslist %s' % (x, x))
+				out.write('/c/slb/accel/compress/comppol %s/brwslist %s' % (x, x))
+
+	
+	
 	for x in vlanDict:
 		# print ('/c/l2/vlan %s\n    name %s' % (vlanDict[x]['tag'], x))
 		return_string+= ('\n/c/l2/vlan %s\n    name %s' % (vlanDict[x]['tag'], x))
