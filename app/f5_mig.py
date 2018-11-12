@@ -424,11 +424,12 @@ def fun_f5_mig(filename, project_name, mode):
                                 new_mNamePort = mNamePort.replace(mNamePort.split(':')[0],
                                                                   mNamePort.split(':')[0] + '_' + name)
                                 if mNamePort in memberTmpDict:
-                                    memberTmpDict.update({new_mNamePort: memberTmpDict[mNamePort]})
+                                    memberTmpDict.update({new_mNamePort.split(':')[0]: memberTmpDict[mNamePort]})
                                     del memberTmpDict[mNamePort]
-                                nodeDict.update({new_mNamePort: mNamePort.split(':')[0]})
-                                mNamePort = new_mNamePort
-                                nodeDict.update({mNamePort: {'health': mon, 'weight':weight, 'maxcon 0 logic': ''}})
+                                print(nodeDict[mem_name])
+                                # nodeDict.update({new_mNamePort.split(':')[0]: nodeDict[mem_name]})
+                                # mNamePort = new_mNamePort
+                                nodeDict.update({new_mNamePort.split(':')[0]: {'rip': nodeDict[mem_name]['rip'],'health': mon, 'weight':weight, 'maxcon 0 logic': ''}})
                             elif not 'health' in nodeDict[mNamePort.split(':')[0]]:
                                 nodeDict[mNamePort.split(':')[0]].update({'health': mon})
                             elif not nodeDict[mNamePort.split(':')[0]]['health'] == mon:
@@ -1549,6 +1550,8 @@ def fun_f5_mig(filename, project_name, mode):
         return_string += ("\n/c/slb/real %s\n    ena\n" % (x))
         out.write("\n/c/slb/real %s\n    ena\n" % (x))
         for y in nodeDict[x]:
+            if y == 'weight' and nodeDict[x][y]==1:
+                continue
             return_string += ("    %s %s\n" % (y, nodeDict[x][y]))
             out.write("    %s %s\n" % (y, nodeDict[x][y]))
     # print("/c/slb/real %s\n    ena\n    rip %s\n" % (x, nodeDict[x]))
