@@ -268,7 +268,7 @@ def fun_f5_mig(filename, project_name, mode):
                     else:
                         name = line.replace('ltm node ', '').split(' ')[0]
                         rd = 'Common'
-                    nodeDict.update({name: {}})
+                    nodeDict.update({name: {'weight':1}})
                 elif "address" in line:
                     junk, ip = line.split('address ')
                     nodeDict[name].update({'rip': ip})
@@ -372,7 +372,8 @@ def fun_f5_mig(filename, project_name, mode):
                 memberTmpDict = {}
                 new_group = {}
                 prio = '0'
-                for line in ''.join(member[:-1]).splitlines():
+                str_member=''.join(member[:-1])
+                for line in str_member.splitlines():
                     # print (line)
                     if line.replace(' ', '')[0:7] == 'monitor':
                         if "and" in line:
@@ -412,8 +413,23 @@ def fun_f5_mig(filename, project_name, mode):
                         mon, log_write = fun_hc_long_name(mon, name, log_write)
 
                         memberTmpDict.update({mNamePort: 'health ' + str(mon)})
-                        if mNamePort.split(':')[0] in nodeDict:
-                            if not 'health' in nodeDict[mNamePort.split(':')[0]]:
+                        if "ratio " in str_member:
+                            weight=str_member[str_member.index("ratio")+6:str_member.index("\n",str_member.index("ratio"))]
+                        else:
+                            weight=1
+                        mem_name, mem_port=mNamePort.split(':')
+                        if mem_name in nodeDict:
+                            if nodeDict[mem_name]['weight']!=weight:
+                                # print('weight is different! for %s' % mem_name)
+                                new_mNamePort = mNamePort.replace(mNamePort.split(':')[0],
+                                                                  mNamePort.split(':')[0] + '_' + name)
+                                if mNamePort in memberTmpDict:
+                                    memberTmpDict.update({new_mNamePort: memberTmpDict[mNamePort]})
+                                    del memberTmpDict[mNamePort]
+                                nodeDict.update({new_mNamePort: mNamePort.split(':')[0]})
+                                mNamePort = new_mNamePort
+                                nodeDict.update({mNamePort: {'health': mon, 'weight':weight, 'maxcon 0 logic': ''}})
+                            elif not 'health' in nodeDict[mNamePort.split(':')[0]]:
                                 nodeDict[mNamePort.split(':')[0]].update({'health': mon})
                             elif not nodeDict[mNamePort.split(':')[0]]['health'] == mon:
                                 new_mNamePort = mNamePort.replace(mNamePort.split(':')[0],
@@ -424,6 +440,8 @@ def fun_f5_mig(filename, project_name, mode):
                                 nodeDict.update({new_mNamePort: mNamePort.split(':')[0]})
                                 mNamePort = new_mNamePort
                                 nodeDict.update({mNamePort: {'health': mon}})
+                        # else:
+                        #     print('Node was not created!!')
                     # print (memberTmpDict)
                     elif "/" in line or (":" in line and "{" in line):
                         # print (line)
