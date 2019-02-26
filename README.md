@@ -3,7 +3,8 @@
 ## Table Of Contents ###
 - [Description](#description )
 - [How To Use](#how-to-use )
-  * [Running Manually](#running-manually)
+  * [Using Windows Exe](#using-windows-exe)
+  * [Running Manually Using Python](#running-manually-using-python)
   * [Using Docker container](#using-docker-container)
 - [Currently Supported](#currently-supported)
 - [Planed In The Future](#planed-in-the-future)
@@ -16,7 +17,10 @@ Supported Alteon versions are 32.0.0.0 and above (not tested on older versions)<
 The script works with both "bigip.conf" and "bigip_base.conf" refer to [Currently Supported](#currently-supported) section for full 
 
 ## How To Use ##
-### Running Manually ###
+### Using Windows Exe ###
+Windows users can use <a href=https://github.com/Radware/F5-Migration/raw/master/WindowsRunner.exe>WindowsRunner.exe</a>, This version contain all required modules and there is no need for any prerequisites
+
+### Running Manually Using Python ###
 In order to use the script make sure you have installed python3
 The script uses the following modules:
 * re
