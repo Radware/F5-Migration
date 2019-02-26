@@ -924,7 +924,7 @@ def fun_f5_mig(filename, project_name, mode):
                     if profType == 'http-compression':
                         if profName in long_names_dict:
                             profName = long_names_dict[profName]
-                        compres_dict[profName]['virt'].append(name + '##=##' + dport)
+                        compres_dict[profName]['virt'].append(str(name) + '##=##' + str(dport))
                 elif profName in defProfDict:
                     profType = defProfDict[profName]
                 else:
