@@ -17,7 +17,7 @@ Supported Alteon versions are 32.0.0.0 and above (not tested on older versions)<
 The script works with both "bigip.conf" and "bigip_base.conf" refer to [Currently Supported](#currently-supported) section for full 
 
 ## How To Use ##
-### Using Windows Exe ###
+### Using Windows exe ###
 Windows users can use <a href=https://github.com/Radware/F5-Migration/raw/master/WindowsRunner.exe>WindowsRunner.exe</a>, This version contain all required modules and there is no need for any prerequisites
 
 ### Running Manually Using Python ###
