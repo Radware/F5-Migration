@@ -62,11 +62,11 @@ For example :
 * NTP (Bigip_base.conf)
 * SNMP (Bigip_base.conf)
 * Filters transletion from Virt (Bigip.conf)
+* HA / Redundency (Bigip_base.conf)
 
 ## Planed In The Future ##
 * iRules
 * Dynamic Routes
 * Text modification ( transletion from stream profile )
-* HA / Redundency
 * Route Domains / Partitions
 * GTM / Link Controller ( Link Proof / GSLB )
