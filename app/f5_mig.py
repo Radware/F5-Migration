@@ -3,6 +3,7 @@
 import re
 import os
 import tarfile
+import ipaddress
 # import datetime
 # import sys
 
@@ -63,6 +64,8 @@ def fun_f5_mig(filename, project_name, mode):
         global tmpDict
         global long_names_dict
         global mng_dict
+        global ha_dict
+        global sync_list
         global to_filter_list
         filter_dict = {}
         compres_dict = {}
@@ -81,6 +84,8 @@ def fun_f5_mig(filename, project_name, mode):
         tmpDict = {}
         long_names_dict = {}
         mng_dict = {'/hprompt': 'ena'}
+        ha_dict = { 'peer': []}
+        sync_list = []
         to_filter_list = []
 
     # end of fun
@@ -105,119 +110,111 @@ def fun_f5_mig(filename, project_name, mode):
         global log1str, log2str
         global to_filter_list
 
-        x1, x2 = healthCheckParser(in_name)
-        for x in x1:
-            log1str += x
-            log1.write('\n###\n%s\n' % x.replace('             ', ' '))
-        for x in x2:
-            log2str += x
-            log2.write('\n###\n%s\n' % x.replace('             ', ' '))
+        x1, x2 = health_check_parser(in_name)
+        for ELEMENT in x1:
+            log1str += ELEMENT
+            log1.write('\n###\n%s\n' % ELEMENT.replace('             ', ' '))
+        for ELEMENT in x2:
+            log2str += ELEMENT
+            log2.write('\n###\n%s\n' % ELEMENT.replace('             ', ' '))
 
-        x1, x2 = realParser(in_name)
-        for x in x1:
-            log1str += x
-            log1.write('\n###\n%s\n' % x.replace('             ', ' '))
-        for x in x2:
-            log2str += x
-            log2.write('\n###\n%s\n' % x.replace('             ', ' '))
+        x1, x2 = real_parser(in_name)
+        for ELEMENT in x1:
+            log1str += ELEMENT
+            log1.write('\n###\n%s\n' % ELEMENT.replace('             ', ' '))
+        for ELEMENT in x2:
+            log2str += ELEMENT
+            log2.write('\n###\n%s\n' % ELEMENT.replace('             ', ' '))
 
-        x1, x2 = groupParser(in_name)
-        for x in x1:
-            log1str += x
-            log1.write('\n###\n%s\n' % x.replace('             ', ' '))
-        for x in x2:
-            log2str += x
-            log2.write('\n###\n%s\n' % x.replace('             ', ' '))
+        x1, x2 = group_parser(in_name)
+        for ELEMENT in x1:
+            log1str += ELEMENT
+            log1.write('\n###\n%s\n' % ELEMENT.replace('             ', ' '))
+        for ELEMENT in x2:
+            log2str += ELEMENT
+            log2.write('\n###\n%s\n' % ELEMENT.replace('             ', ' '))
 
         x1, x2 = trunk_parser(in_name)
-        for x in x1:
-            log1str += x
-            log1.write('\n###\n%s\n' % x.replace('             ', ' '))
-        for x in x2:
-            log2str += x
-            log2.write('\n###\n%s\n' % x.replace('             ', ' '))
+        for ELEMENT in x1:
+            log1str += ELEMENT
+            log1.write('\n###\n%s\n' % ELEMENT.replace('             ', ' '))
+        for ELEMENT in x2:
+            log2str += ELEMENT
+            log2.write('\n###\n%s\n' % ELEMENT.replace('             ', ' '))
 
         x1, x2 = func_vlan_parser(in_name)
-        for x in x1:
-            log1str += x
-            log1.write('\n###\n%s\n' % x.replace('             ', ' '))
-        for x in x2:
-            log2str += x
-            log2.write('\n###\n%s\n' % x.replace('             ', ' '))
+        for ELEMENT in x1:
+            log1str += ELEMENT
+            log1.write('\n###\n%s\n' % ELEMENT.replace('             ', ' '))
+        for ELEMENT in x2:
+            log2str += ELEMENT
+            log2.write('\n###\n%s\n' % ELEMENT.replace('             ', ' '))
 
         x1, x2 = selfip_parser(in_name)
-        for x in x1:
-            log1str += x
-            log1.write('\n###\n%s\n' % x.replace('             ', ' '))
-        for x in x2:
-            log2str += x
-            log2.write('\n###\n%s\n' % x.replace('             ', ' '))
+        for ELEMENT in x1:
+            log1str += ELEMENT
+            log1.write('\n###\n%s\n' % ELEMENT.replace('             ', ' '))
+        for ELEMENT in x2:
+            log2str += ELEMENT
+            log2.write('\n###\n%s\n' % ELEMENT.replace('             ', ' '))
 
-        x1, x2 = profParser(in_name)
-        for x in x1:
-            log1str += x
-            log1.write('\n###\n%s\n' % x.replace('             ', ' '))
-        for x in x2:
-            log2str += x
-            log2.write('\n###\n%s\n' % x.replace('             ', ' '))
+        x1, x2 = prof_parser(in_name)
+        for ELEMENT in x1:
+            log1str += ELEMENT
+            log1.write('\n###\n%s\n' % ELEMENT.replace('             ', ' '))
+        for ELEMENT in x2:
+            log2str += ELEMENT
+            log2.write('\n###\n%s\n' % ELEMENT.replace('             ', ' '))
 
-        x1, x2 = persistParser(in_name)
-        for x in x1:
-            log1str += x
-            log1.write('\n###\n%s\n' % x.replace('             ', ' '))
-        for x in x2:
-            log2str += x
-            log2.write('\n###\n%s\n' % x.replace('             ', ' '))
+        x1, x2 = persist_parser(in_name)
+        for ELEMENT in x1:
+            log1str += ELEMENT
+            log1.write('\n###\n%s\n' % ELEMENT.replace('             ', ' '))
+        for ELEMENT in x2:
+            log2str += ELEMENT
+            log2.write('\n###\n%s\n' % ELEMENT.replace('             ', ' '))
 
         x1, x2 = func_virt_parser(in_name)
-        for x in x1:
-            log1str += x
-            log1.write('\n###\n%s\n' % x.replace('             ', ' '))
-        for x in x2:
-            log2str += x
-            log2.write('\n###\n%s\n' % x.replace('             ', ' '))
+        for ELEMENT in x1:
+            log1str += ELEMENT
+            log1.write('\n###\n%s\n' % ELEMENT.replace('             ', ' '))
+        for ELEMENT in x2:
+            log2str += ELEMENT
+            log2.write('\n###\n%s\n' % ELEMENT.replace('             ', ' '))
 
         if to_filter_list and to_filter_list != []:
             # print('Starting filter convertion!')
             to_filter_list, x1, x2 = filter_parser(to_filter_list)
-            for x in x1:
-                log1str += x
-                log1.write('\n###\n%s\n' % x.replace('             ', ' '))
-            for x in x2:
-                log2str += x
-                log2.write('\n###\n%s\n' % x.replace('             ', ' '))
+            for ELEMENT in x1:
+                log1str += ELEMENT
+                log1.write('\n###\n%s\n' % ELEMENT.replace('             ', ' '))
+            for ELEMENT in x2:
+                log2str += ELEMENT
+                log2.write('\n###\n%s\n' % ELEMENT.replace('             ', ' '))
 
         x1, x2 = mng_parser(in_name)
-        for x in x1:
-            log1str += x
-            log1.write('\n###\n%s\n' % x.replace('             ', ' '))
-        for x in x2:
-            log2str += x
-            log2.write('\n###\n%s\n' % x.replace('             ', ' '))
+        for ELEMENT in x1:
+            log1str += ELEMENT
+            log1.write('\n###\n%s\n' % ELEMENT.replace('             ', ' '))
+        for ELEMENT in x2:
+            log2str += ELEMENT
+            log2.write('\n###\n%s\n' % ELEMENT.replace('             ', ' '))
+
+        x1, x2 = ha_parser(in_name)
+        for ELEMENT in x1:
+            log1str += ELEMENT
+            log1.write('\n###\n%s\n' % ELEMENT.replace('             ', ' '))
+        for ELEMENT in x2:
+            log2str += ELEMENT
+            log2.write('\n###\n%s\n' % ELEMENT.replace('             ', ' '))
 
         x1, x2 = route_parser(in_name)
-        for x in x1:
-            log1str += x
-            log1.write('\n###\n%s\n' % x.replace('             ', ' '))
-        for x in x2:
-            log2str += x
-            log2.write('\n###\n%s\n' % x.replace('             ', ' '))
-
-    def fun_banner_printer(banner):
-        tmp = 0
-        for line in banner.splitlines():
-            if len(line) > tmp:
-                tmp = len(line)
-        tmp += 5
-        print('#' * (tmp + 1))
-        for line in banner.splitlines():
-            if (tmp - len(line)) % 2 == 0:
-                tmp1 = int(((tmp - len(line)) / 2))
-                print('#' + (' ' * (tmp1 - 1)) + line + (' ' * tmp1) + '#')
-            else:
-                tmp1 = int((tmp - len(line)) / 2)
-                print('#' + (' ' * tmp1) + line + (' ' * tmp1) + '#')
-        print('#' * (tmp + 1))
+        for ELEMENT in x1:
+            log1str += ELEMENT
+            log1.write('\n###\n%s\n' % ELEMENT.replace('             ', ' '))
+        for ELEMENT in x2:
+            log2str += ELEMENT
+            log2.write('\n###\n%s\n' % ELEMENT.replace('             ', ' '))
 
     def fun_port_num_validate(dport):
         try:
@@ -242,7 +239,7 @@ def fun_f5_mig(filename, project_name, mode):
             else:
                 log_write.append(
                     "\n###\n Object type: Group \n Object name: %s \n Issue: Uses unsupported Health Check: %s \n" % (
-                    name, hc))
+                        name, hc))
                 hc = 'icmp'
         return hc, log_write
 
@@ -252,7 +249,7 @@ def fun_f5_mig(filename, project_name, mode):
     #		#
     #################
 
-    def realParser(text):
+    def real_parser(text):
         if len(nodeDict.keys()) != 0:
             return [], []
 
@@ -298,7 +295,7 @@ def fun_f5_mig(filename, project_name, mode):
     #		#
     #################
 
-    def groupParser(text):
+    def group_parser(text):
         if len(poolDict.keys()) != 0:
             return [], []
 
@@ -360,7 +357,7 @@ def fun_f5_mig(filename, project_name, mode):
                 elif "min-active-members" in line:
                     log_write.append(
                         " Object type: Group \n Object name: %s \n Issue: Prioroty Group Activation is being set to: %s\n Please make sure autoconvertion worked :)\n" % (
-                        name, line.split('min-active-members ')[1]))
+                            name, line.split('min-active-members ')[1]))
                 elif 'load-balancing-mode' in line:
                     metric = line.replace('    load-balancing-mode ', '')
                     if metric in metricDict:
@@ -538,7 +535,7 @@ def fun_f5_mig(filename, project_name, mode):
     #			            #
     #########################
 
-    def healthCheckParser(text):
+    def health_check_parser(text):
         global hc_id
         if len(monitorDict.keys()) != 0:
             return [], []
@@ -572,14 +569,14 @@ def fun_f5_mig(filename, project_name, mode):
                     if rd != 'Common':
                         log_write.append(
                             ' Object type: Health Check \n Object name: %s \n Found Route Domain conifuration! using RD=%s, Please address it manually:\n' % (
-                            name, ''.join(monitor)))
+                                name, ''.join(monitor)))
                         pass
                     descrip = name
                     if len(name) > 32:
                         hc_id += 1
                         log_write.append(
                             ' Object type: Health Check \n Object name: %s \n Issue: Name too long, changed to ID : %s\n' % (
-                            name, hc_id))
+                                name, hc_id))
                         long_names_dict.update({name: hc_id})
                         name = hc_id
                     new_hc.update({'type': advhcSupTypes[hcType], 'advtype': {}, 'name': '"' + descrip[:32] + '"'})
@@ -679,7 +676,7 @@ def fun_f5_mig(filename, project_name, mode):
                 else:
                     if hcType in advhcSupTypes:
                         log_unhandeled.append(' Object type: Health Check\n Object name: %s\n Line: %s\n' % (
-                        str(name), line.replace('  ', '')))
+                            str(name), line.replace('  ', '')))
 
                 monitorDict.update({name: new_hc})
         return log_write, log_unhandeled
@@ -690,7 +687,7 @@ def fun_f5_mig(filename, project_name, mode):
     #			#
     #########################
 
-    def profParser(text):
+    def prof_parser(text):
         global compres_id
         if len(profDict.keys()) != 0:
             return [], []
@@ -720,7 +717,7 @@ def fun_f5_mig(filename, project_name, mode):
                     compres_id += 1
                     log_write.append(
                         ' Object type: Compression Profile \n Object name: %s \n Issue: Name is too long, changed to ID: %d\n' % (
-                        name, compres_id))
+                            name, compres_id))
                     long_names_dict.update({profName: compres_id})
                     profName = compres_id
                 compres_dict.update({profName: {'virt': []}})
@@ -732,7 +729,7 @@ def fun_f5_mig(filename, project_name, mode):
             if rd != 'Common':
                 log_write.append(
                     ' Object type: Profile \n Object name: %s \n Issue: Found Route Domain conifuration! using RD=%s, Please address it manually!\n' % (
-                    name, rd))
+                        name, rd))
         return log_write, log_unhandeled
 
     #########################
@@ -741,7 +738,7 @@ def fun_f5_mig(filename, project_name, mode):
     #			#
     #########################
 
-    def persistParser(text):
+    def persist_parser(text):
         if len(persist_dict.keys()) != 0:
             return [], []
 
@@ -786,7 +783,7 @@ def fun_f5_mig(filename, project_name, mode):
             if rd != 'Common':
                 log_write.append(
                     ' Object type: Group \n Object name: %s Found Route Domain conifuration! using RD=%s, Please address it manually!\n' % (
-                    name, rd))
+                        name, rd))
         return log_write, log_unhandeled
 
     #################
@@ -963,10 +960,10 @@ def fun_f5_mig(filename, project_name, mode):
                     else:
                         log_write.append(
                             ' Object type: Virt \n Object name: %s \n Issue: required unknown persistance profile: %s, please address manually\n' % (
-                            name, line))
+                                name, line))
                 else:
                     log_unhandeled.append(' Object type: Virt \n Object name: %s \n Line: %s\n' % (name, line))
-                if virt_dict[name]['persist']['type'] == 'ssl':
+                if 'persist' in virt_dict[name] and virt_dict[name]['persist']['type'] == 'ssl':
                     virt_dict[name].update({'aplic': 'ssl'})
             if del_virt:
                 del virt_dict[name]
@@ -1004,7 +1001,7 @@ def fun_f5_mig(filename, project_name, mode):
             if rd != 'Common':
                 log_write.append(
                     ' Object type: Vlan \n Object name: %s \n Found Route Domain conifuration! using RD=%s, Please address it manually!\n' % (
-                    name, rd))
+                        name, rd))
 
             try:
                 inter = ''.join(str_vlan[str_vlan.index('  interfaces {'):str_vlan.index('\n    }\n', str_vlan.index(
@@ -1087,8 +1084,8 @@ def fun_f5_mig(filename, project_name, mode):
                     junk, ip = line.split('address ')
                     address, mask = ip.split('/')
                     mask = prefixToMaskDict[mask]
-                    tmpDict.update({'addr': address})
-                    tmpDict.update({'mask': mask})
+                    tmpDict.update(dict(addr=address))
+                    tmpDict.update(dict(mask=mask))
                 # print('address='+address+', mask='+mask)
                 elif "vlan" in line:
                     if '/' in line:
@@ -1096,17 +1093,15 @@ def fun_f5_mig(filename, project_name, mode):
                     else:
                         vlan = line.replace('vlan', '').replace(' ', '')
                     if not vlan in vlanDict:
-                        log_write.append(
-                            " Object type: Vlan \n Object name: %s \n Issue: Vlan Not Found! Please address manually\n" % vlan)
-                        tmpDict.update({'vlan': 'error:' + vlan})
+                        log_write.append(" Object type: Vlan \n Object name: %s \n Issue: Vlan Not Found! Please address manually\n" % vlan)
+                        tmpDict.update(dict(vlan='error:'+vlan))
                     else:
-                        tmpDict.update({'vlan': vlanDict[vlan]['tag']})
+                        tmpDict.update(dict(vlan=vlanDict[vlan]['tag']))
                 # print('rd='+rd+', vlan='+vlan)
                 elif line == '\n':
                     continue
                 else:
-                    log_unhandeled.append(
-                        ' Object type: L3 Interface \n Object name: %s \n Line: %s\n' % (name, line.replace('  ', '')))
+                    log_unhandeled.append(' Object type: L3 Interface \n Object name: %s \n Line: %s\n' % (name, line.replace('  ', '')))
 
                 if rd != 'Common':
                     log_write.append(
@@ -1120,8 +1115,7 @@ def fun_f5_mig(filename, project_name, mode):
                     floatIfDict.update({name: tmpDict})
             # end of lines loop
             if strPortLD != '':
-                log_write.append(
-                    ' Object type: L3 Interface \n Object name: %s \n Issue: Port Lockdown is not currently supported, Please address manually!\n%s\n' % (
+                log_write.append(' Object type: L3 Interface \n Object name: %s \n Issue: Port Lockdown is not currently supported, Please address manually!\n%s\n' % (
                     name, strPortLD))
         return log_write, log_unhandeled
 
@@ -1210,7 +1204,7 @@ def fun_f5_mig(filename, project_name, mode):
             for line in re.sub(r'( +)}\n( )+}\n}', r'\1}',
                                re.search(r'(sys syslog.+\n( .+\n)+})', text).group(0).replace('sys syslog {',
                                                                                               '').replace(
-                                       'remote-servers {', '')).replace('  ', '').splitlines():
+                                   'remote-servers {', '')).replace('  ', '').splitlines():
                 if '}' in line:
                     tmp += line + '\n'
                 else:
@@ -1245,7 +1239,7 @@ def fun_f5_mig(filename, project_name, mode):
                     for comm in snmp[snmp.index('communities') + 14:snmp.index('\n    }\n',
                                                                                snmp.index('communities'))].replace('  ',
                                                                                                                    '').replace(
-                            '\n', '##=##').split('}'):
+                        '\n', '##=##').split('}'):
                         if comm[0:5] == '##=##':
                             comm = comm[5:]
                         if '{' in comm:
@@ -1260,8 +1254,7 @@ def fun_f5_mig(filename, project_name, mode):
                             elif key == 'access':
                                 comm_access = val
                             else:
-                                log_unhandeled(
-                                    'Object type: SNMP Config \n Object name: ' + comm_id + '\n Line :' + tmp_atrib)
+                                log_unhandeled.append('Object type: SNMP Config \n Object name: ' + comm_id + '\n Line :' + tmp_atrib)
 
                         if comm_access == 'r':
                             mng_dict['ssnmp'].update({'rcomm': comm_name})
@@ -1292,7 +1285,7 @@ def fun_f5_mig(filename, project_name, mode):
                                     if not val == '162':
                                         log_write.append(
                                             ' Object type: SNMP Trap \n Object name: %s \n Issue: SNMP traps supported only on port 162! was configured %s\n' % (
-                                            traps_id, val))
+                                                traps_id, val))
                             mng_dict['ssnmp'].update({'trap' + str(c): trap_host})
                 except Exception as e:
                     pass
@@ -1322,10 +1315,63 @@ def fun_f5_mig(filename, project_name, mode):
                 # print(line)
                 if "hostname" in line:
                     mng_dict['ssnmp'].update({'name': list(filter(None, line.split(' ')))[1]})
-                log_unhandeled.append(' Object type: global-settings \n Object name: N/A \n Line: %s\n' % (line))
+                log_unhandeled.append(' Object type: global-settings \n Object name: N/A \n Line: %s\n' % line)
 
         except Exception as e:
             pass
+        return log_write, log_unhandeled
+
+    #################
+    #               #
+    #   Redundancy  #
+    #               #
+    #################
+
+    def ha_parser(text):
+        # tmp = ''
+        sync_id=0
+        log_write = []
+        log_unhandeled = []
+        for device in re.findall('(^cm device (.+) {\n(  .+\n)+^})', text, re.MULTILINE):
+            if mng_dict['mmgmt']['addr'] in device[0]:
+                dev_name=re.search(r'cm device (.+) {', device[0]).group(1)
+                if '/' in dev_name:
+                    dev_name=dev_name.split('/')[2]
+                mng_dict['ssnmp'].update(dict(name='"'+dev_name+'"'))
+            else:
+                sync_list.append(re.search(r'configsync-ip (.+)', device[0]).group(1))
+                sync_peer=re.search(r'configsync-ip (.+)', device[0])
+                if sync_peer:
+                    sync_peer=sync_peer.group(1)
+
+                ha_dict['peer'].append( sync_peer )
+                mirror_ip = re.search(r'mirror-ip (.+)', device[0])
+                if mirror_ip:
+                    mirror_ip=mirror_ip.group(1)
+
+                unicast_ip = re.search(r'( )+ip (.+)', device[0])
+                if unicast_ip:
+                    unicast_ip=unicast_ip.group(2)
+
+                # print(device[0])
+                for self in ifDict:
+                    tmp_ip=ifDict[self]['addr']+'/'+ifDict[self]['mask']
+                    for entry in list(ipaddress.ip_network(tmp_ip, False).hosts()):
+                        if ipaddress.ip_address(mirror_ip)==entry:
+                            ifDict[self]['peer']=mirror_ip
+                            if 'def' in ha_dict:
+                                ha_dict['def'].append( str(ifDict[self]['if_id']) )
+                                ha_dict['def'] = list(set(ha_dict['def']))
+                            else:
+                                ha_dict.update({'def': [str(ifDict[self]['if_id'])]})
+                        if ipaddress.ip_address(unicast_ip)==entry:
+                            ifDict[self]['peer']=unicast_ip
+                            if 'def' in ha_dict:
+                                ha_dict['def'].append( str(ifDict[self]['if_id']) )
+                                ha_dict['def'] = list(set(ha_dict['def']))
+                            else:
+                                ha_dict.update({'def': [str(ifDict[self]['if_id'])]})
+                    # print(ipaddress.ip_address(sync_peer) in ipaddress.ip_network(tmp_ip))
         return log_write, log_unhandeled
 
     #################
@@ -1517,7 +1563,7 @@ def fun_f5_mig(filename, project_name, mode):
                     filter_dict[filt_id].update({'action': 'redir', 'group': line.split()[1]})
                 else:
                     pass
-        return (l, log_write, log_unhandeled)
+        return l, log_write, log_unhandeled
 
     #####################
     #					#
@@ -1546,8 +1592,8 @@ def fun_f5_mig(filename, project_name, mode):
         f.close()
 
     for x in nodeDict:
-        return_string += ("\n/c/slb/real %s\n    ena\n" % (x))
-        out.write("\n/c/slb/real %s\n    ena\n" % (x))
+        return_string += ("\n/c/slb/real %s\n    ena\n" % x)
+        out.write("\n/c/slb/real %s\n    ena\n" % x)
         for y in nodeDict[x]:
             if y == 'weight' and nodeDict[x][y]==1:
                 continue
@@ -1557,9 +1603,9 @@ def fun_f5_mig(filename, project_name, mode):
 
     for x in poolDict:
         return_string += ("\n/c/slb/group %s\n    ipver v4\n    health %s\n    metric %s\n" % (
-        x, poolDict[x]['advhc'], poolDict[x]['metric']))
+            x, poolDict[x]['advhc'], poolDict[x]['metric']))
         out.write("\n/c/slb/group %s\n    ipver v4\n    health %s\n    metric %s\n" % (
-        x, poolDict[x]['advhc'], poolDict[x]['metric']))
+            x, poolDict[x]['advhc'], poolDict[x]['metric']))
         if 'backup' in poolDict[x]:
             return_string += ('    backup %s\n' % poolDict[x]['backup'])
             out.write('    backup %s\n' % poolDict[x]['backup'])
@@ -1585,7 +1631,7 @@ def fun_f5_mig(filename, project_name, mode):
         if monitorDict[x]['advtype'] != {}:
             if 'http' in monitorDict[x]['type']:
                 # print('    http')
-                return_string += ('    http\n')
+                return_string += '    http\n'
                 out.write('    http\n')
             else:
                 # print('    %s' % monitorDict[x]['type'],)
@@ -1639,10 +1685,10 @@ def fun_f5_mig(filename, project_name, mode):
                     return_string+=("/c/slb/appshape/script %s/ena/import text\nwhen HTTP_REQUEST  {\n\tpersist cookie %s %s expires %d relative\n}\n" % (x+"_cookie", cMethod, cName, c_expir))
                     out.write("/c/slb/virt %s/service %s %s/appshape/add 5 %s\n" % (x, virt_dict[x]['dport'], virt_dict[x]['aplic'],x+"_cookie" ))
                     return_string+=(
-                        "/c/slb/appshape/script %s/ena/import text\nwhen HTTP_REQUEST  {\n\tpersist cookie %s %s expires %d relative\n}\n" % (
+                            "/c/slb/appshape/script %s/ena/import text\nwhen HTTP_REQUEST  {\n\tpersist cookie %s %s expires %d relative\n}\n" % (
                         x + "_cookie", cMethod, cName, c_expir))
                     out.write("/c/slb/virt %s/service %s %s/appshape/add 5 %s\n" % (
-                    x, virt_dict[x]['dport'], virt_dict[x]['aplic'], x + "_cookie"))
+                        x, virt_dict[x]['dport'], virt_dict[x]['aplic'], x + "_cookie"))
                 else:
                     # print('pbind %s %s %s 10 10' % (virtDict[x]['persist']['type'], cMethod, cName))
                     return_string += ('    pbind %s %s %s 10 10\n' % (virt_dict[x]['persist']['type'], cMethod, cName))
@@ -1667,10 +1713,10 @@ def fun_f5_mig(filename, project_name, mode):
         for y in virt_dict[x]['profiles']:
             tmpType = virt_dict[x]['profiles'][y]['type']
             if tmpType == 'one-connect' and virt_dict[x]['aplic'] in ['http', 'https']:
-                return_string += ('    http\n    connmgt ena 10\n..\n')
+                return_string += '    http\n    connmgt ena 10\n..\n'
                 out.write('    http\n    connmgt ena 10\n..\n')
             elif tmpType == 'one-connect':
-                return_string += ('    connmgt ena 10\n')
+                return_string += '    connmgt ena 10\n'
                 out.write('    connmgt ena 10\n')
         for z in virt_dict[x]['adv']:
             return_string += ('/c/slb/virt %s/service %s %s/%s %s\n' % (
@@ -1681,22 +1727,22 @@ def fun_f5_mig(filename, project_name, mode):
         if 'ssl' in virt_dict[x]:
             if 'be' in virt_dict[x]['ssl'] and 'fe' in virt_dict[x]['ssl']:
                 return_string += (
-                            '/c/slb/ssl/sslpol %s/fessl e/backend/ssl e\n/c/slb/virt %s/service %s %s/ssl/sslpol %s\n' % (
+                        '/c/slb/ssl/sslpol %s/fessl e/backend/ssl e\n/c/slb/virt %s/service %s %s/ssl/sslpol %s\n' % (
                     x[:32], x, virt_dict[x]['dport'], virt_dict[x]['aplic'], x[:32]))
                 out.write('/c/slb/ssl/sslpol %s/fessl e/backend/ssl e\n/c/slb/virt %s/service %s %s/ssl/sslpol %s\n' % (
-                x[:32], x, virt_dict[x]['dport'], virt_dict[x]['aplic'], x[:32]))
+                    x[:32], x, virt_dict[x]['dport'], virt_dict[x]['aplic'], x[:32]))
             elif 'fe' in virt_dict[x]['ssl']:
                 return_string += (
-                            '/c/slb/ssl/sslpol %s/fessl e/backend/ssl d\n/c/slb/virt %s/service %s %s/ssl/sslpol %s\n' % (
+                        '/c/slb/ssl/sslpol %s/fessl e/backend/ssl d\n/c/slb/virt %s/service %s %s/ssl/sslpol %s\n' % (
                     x[:32], x, virt_dict[x]['dport'], virt_dict[x]['aplic'], x[:32]))
                 out.write('/c/slb/ssl/sslpol %s/fessl e/backend/ssl d\n/c/slb/virt %s/service %s %s/ssl/sslpol %s\n' % (
-                x[:32], x, virt_dict[x]['dport'], virt_dict[x]['aplic'], x[:32]))
+                    x[:32], x, virt_dict[x]['dport'], virt_dict[x]['aplic'], x[:32]))
             elif 'be' in virt_dict[x]['ssl']:
                 return_string += (
-                            '/c/slb/ssl/sslpol %s/fessl d/backend/ssl e\n/c/slb/virt %s/service %s %s/ssl/sslpol %s\n' % (
+                        '/c/slb/ssl/sslpol %s/fessl d/backend/ssl e\n/c/slb/virt %s/service %s %s/ssl/sslpol %s\n' % (
                     x[:32], x, virt_dict[x]['dport'], virt_dict[x]['aplic'], x[:32]))
                 out.write('/c/slb/ssl/sslpol %s/fessl d/backend/ssl e\n/c/slb/virt %s/service %s %s/ssl/sslpol %s\n' % (
-                x[:32], x, virt_dict[x]['dport'], virt_dict[x]['aplic'], x[:32]))
+                    x[:32], x, virt_dict[x]['dport'], virt_dict[x]['aplic'], x[:32]))
 
     for x in compres_dict:
         # print('/c/slb/accel/compress/comppol %s' % x)
@@ -1734,10 +1780,13 @@ def fun_f5_mig(filename, project_name, mode):
     for x in ifDict:
         # print ('/c/l3/if %d\n    ena\n    ipver v4\n    address %s\n    mask %s\n    vlan %s\n    name %s' % (ifDict[x]['if_id'], ifDict[x]['address'], ifDict[x]['mask'], ifDict[x]['vlan'], x))
         return_string += (
-                    '\n/c/l3/if %d\n    ena\n    ipver v4\n    address %s\n    mask %s\n    vlan %s\n    descr %s\n' % (
+                '\n/c/l3/if %d\n    ena\n    ipver v4\n    address %s\n    mask %s\n    vlan %s\n    descr %s\n' % (
             ifDict[x]['if_id'], ifDict[x]['addr'], ifDict[x]['mask'], ifDict[x]['vlan'], x))
         out.write('\n/c/l3/if %d\n    ena\n    ipver v4\n    address %s\n    mask %s\n    vlan %s\n    descr %s\n' % (
-        ifDict[x]['if_id'], ifDict[x]['addr'], ifDict[x]['mask'], ifDict[x]['vlan'], x))
+            ifDict[x]['if_id'], ifDict[x]['addr'], ifDict[x]['mask'], ifDict[x]['vlan'], x))
+        if 'peer' in ifDict[x]:
+            return_string+= '    peer %s\n' % ifDict[x]['peer']
+            out.write('    peer %s\n' % ifDict[x]['peer'])
 
     for x in mng_dict:
         if x[0] == '/':
@@ -1750,8 +1799,7 @@ def fun_f5_mig(filename, project_name, mode):
             out.write('/c/sys/%s\n' % x)
             for y in mng_dict[x]:
                 # print('    hst%d %s 7 7 all %s' % ( y, mng_dict[x][y]['host'], mng_dict[x][y]['remote-port']))
-                return_string += (
-                            '    hst%d %s 7 7 all %s\n' % (y, mng_dict[x][y]['host'], mng_dict[x][y]['remote-port']))
+                return_string += ('    hst%d %s 7 7 all %s\n' % (y, mng_dict[x][y]['host'], mng_dict[x][y]['remote-port']))
                 out.write('    hst%d %s 7 7 all %s\n' % (y, mng_dict[x][y]['host'], mng_dict[x][y]['remote-port']))
         else:
             # print ('/c/sys/'+x)
@@ -1803,6 +1851,17 @@ def fun_f5_mig(filename, project_name, mode):
             # print('    %s %s' % (y, filter_dict[x][y]))
             return_string += ('    %s %s\n' % (y, filter_dict[x][y]))
             out.write('    %s %s\n' % (y, filter_dict[x][y]))
+
+    c=0
+    for y in ha_dict['peer']:
+        c+=1
+        return_string+='\n/c/slb/sync/peer %d\n    ena\n    addr %s\n\n' % (c, y)
+        out.write('\n/c/slb/sync/peer %d\n    ena\n    addr %s\n\n' % (c, y))
+
+    if 'def' in ha_dict and len(ha_dict['def'])>0:
+        tmp=" ".join(ha_dict['def'])
+        return_string +='/c/l3/hamode switch\n/c/l3/ha/switch\n    def %s' % tmp
+        out.write('/c/l3/hamode switch\n/c/l3/ha/switch\n    def %s' % tmp)
 
     if virt_dict == {} and poolDict == {} and nodeDict == {} and monitorDict == {} and ifDict == {} and floatIfDict == {} and vlanDict == {}:
         print('\n\nDid not find any objects, please make sure using TMSH config')
