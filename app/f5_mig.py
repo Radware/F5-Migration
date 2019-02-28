@@ -4,6 +4,7 @@ import re
 import os
 import tarfile
 import ipaddress
+import copy
 # import datetime
 # import sys
 
@@ -281,7 +282,11 @@ def fun_f5_mig(filename, project_name, mode):
 
                     hc, log_write = fun_hc_long_name(hc, name, log_write)
                     nodeDict[name].update({'health': hc})
+                elif 'session' == line.replace(' ', '')[0:7]:
+                    if line.replace(' ', '')[7:]=='user-disabled':
+                        nodeDict[name].update({'shut': 'psession'})
                 else:
+                    print(line)
                     log_unhandeled.append(
                         ' Object type: Real\n Object name: ' + name + '\nLine: ' + line.replace(' ', ''))
             if rd != 'Common':
@@ -386,8 +391,7 @@ def fun_f5_mig(filename, project_name, mode):
                                 if '/' in x:
                                     junk, tmprd, tmphc = x.split('/')
                                     if tmprd != 'Common':
-                                        log_write.append(
-                                            ' Object type: Group \n Object name: ' + name + ' \n Issue: Found Route Domain conifuration! using RD=%s, Please address it manually!\n')
+                                        log_write.append(' Object type: Group \n Object name: ' + name + ' \n Issue: Found Route Domain conifuration! using RD=%s, Please address it manually!\n')
                                 elif '    monitor ' in x:
                                     tmphc = x.replace('    monitor ', '')
                                 else:
@@ -448,11 +452,12 @@ def fun_f5_mig(filename, project_name, mode):
                             mNamePort = mNamePort.replace(' {', '')
                         else:
                             mNamePort = line.replace('{', '').replace(' ', '')
+
                         if rd != 'Common':
                             log_write.append(
                                 ' Object type: Group \n Object name: ' + name + ' \n Issue: Found Route Domain conifuration! using RD=%s, Please address it manually!\n')
-                        # print('rd='+rd+', mName='+mNamePort)
-                        if 'metric' in locals():
+                        # print('rd='+rd+', mName='+mNamePort+', name='+name)
+                        # if 'metric' in locals():
                             new_group.update({'advhc': hc, 'metric': metric})
                         else:
                             new_group.update({'advhc': hc, 'metric': 'roundrobin'})
@@ -462,15 +467,18 @@ def fun_f5_mig(filename, project_name, mode):
                         else:
                             memberTmpDict.update({mNamePort: 'health '})
                         new_group.update({'members': memberTmpDict})
+                        # print('rd=' + rd + ', mName=' + mNamePort + ', name=' + name)
+                        # print(new_group)
                     # print(memberTmpDict)
                     elif "address" in line:
+                        # print(line)
                         loglines.remove(line)
                         junk, ip = line.split('address ')
                         if not mNamePort.split(':')[0] in nodeDict:
                             log_write.append(
                                 " Object type: Group \n Object name: " + name + "\n Issue: Node not found or ip missmatch! Please check manually for %s\n" %
                                 mNamePort.split(':')[0])
-                    # print('name='+name+', IP='+ip)
+                        # print('name='+name+', IP='+ip)
                     elif "priority-group" in line:
                         prio = list(filter(None, line.split()))[1]
                         tmp_dict.update({mNamePort: prio})
@@ -482,21 +490,23 @@ def fun_f5_mig(filename, project_name, mode):
                         if line[0] == '}':
                             continue
                         log_unhandeled.append(' Object type: Group\n Object name:' + str(name) + '\nLine: ' + line)
-
+                # print(new_group)
                 # print (tmp_dict)
                 # end of member lines
                 if tmp_dict != {}:
-                    # print(tmp_dict)
-                    # print(tmp_list)
-                    new_bkp_group.update(new_group)
-                    del new_bkp_group['members']
-                    new_bkp_group.update({'members': {}})
+                    new_bkp_group = copy.deepcopy(new_group)
                     if len(tmp_list) == 1:
                         for member in list(new_group['members']):
+                            # print(member)
+                            # print(tmp_dict)
                             if member in tmp_dict:
-                                new_bkp_group['members'].update({member: ''})
+                                # new_bkp_group['members'].update({member: ''})
+                                pass
                             else:
                                 del new_group['members'][member]
+                        # print(tmp_dict)
+                        # print(new_group)
+                        # print(new_bkp_group)
                         new_group.update({'backup': 'g' + name + '_bkp'})
                         poolDict.update({name + '_bkp': new_bkp_group})
                     elif len(tmp_list) == 2 and len(tmp_dict) == len(new_group):
@@ -519,6 +529,8 @@ def fun_f5_mig(filename, project_name, mode):
                         # print(" Object type: Group \n Object name: %s \n Issue: Priority-group with more then 2 groups is being used. Please address manually\n " % name )
                         log_write.append(
                             " Object type: Group \n Object name: %s \n Issue: Priority-group with more then 2 groups is being used. Please address manually\n " % name)
+                # print('name='+name)
+                # print(new_group)
                 poolDict.update({name: new_group})
             for line in loglines:
                 if line[0] == '}':
@@ -602,7 +614,9 @@ def fun_f5_mig(filename, project_name, mode):
                         new_hc.update({'dest': ip})
                     if port != "*":
                         new_hc.update({'dport': port})
-                elif "send " in line and line != '    send none' and hcType != 'udp':
+                elif "send " in line and line != '    send none' :
+                    if hcType == 'udp':
+                        log_write.append(' Object type: Health Check \n Object name: %s \n Issue: Sending string is not supported in UDP Health Checks.')
                     if hcType in ['http', 'https']:
                         line = line.replace('    send "', '')
                         method = line.split(' ')[0]
@@ -652,7 +666,9 @@ def fun_f5_mig(filename, project_name, mode):
                     else:
                         # new_hc['advtype']=line
                         new_hc['advtype'].update({'send': line.replace('    send ', '')})
-                elif "recv " in line and line != '    recv none' and hcType != 'udp':
+                elif "recv " in line and line != '    recv none' :
+                    if hcType == 'udp':
+                        log_write.append(' Object type: Health Check \n Object name: %s \n Issue: Sending string is not supported in UDP Health Checks.')
                     if hcType in ['http', 'https']:
                         line = line.replace('    recv ', '')
                         # print ("response="+line)
@@ -671,9 +687,10 @@ def fun_f5_mig(filename, project_name, mode):
                         new_hc['advtype'].update({'expect': line.replace('    recv ', '')})
                 elif 'cipherlist' in line:
                     new_hc.update({'cipher': '"' + line.replace('    cipherlist ', '') + '"', 'ssl': 'ena'})
-                elif 'defaults-from' in line:
+                elif 'defaults-from' in line or 'debug no'==line.replace('  ',''):
                     ignore = 1
                 else:
+                    # print(line)
                     if hcType in advhcSupTypes:
                         log_unhandeled.append(' Object type: Health Check\n Object name: %s\n Line: %s\n' % (
                             str(name), line.replace('  ', '')))
@@ -682,9 +699,9 @@ def fun_f5_mig(filename, project_name, mode):
         return log_write, log_unhandeled
 
     #########################
-    #			#
-    #	Prpfiles 	#
-    #			#
+    #	            		#
+    #	    Prpfiles       	#
+    #		            	#
     #########################
 
     def prof_parser(text):
@@ -1098,7 +1115,12 @@ def fun_f5_mig(filename, project_name, mode):
                     else:
                         tmpDict.update(dict(vlan=vlanDict[vlan]['tag']))
                 # print('rd='+rd+', vlan='+vlan)
-                elif line == '\n':
+                elif "traffic-group" in line:
+                    tg_str=re.search(r'traffic-group (/.+/)?(.+)', line).group(2)
+                    if "traffic-group-local-only"!=tg_str and "traffic-group-1"!=tg_str:
+                        log_unhandeled.append(' Object type: L3 Interface \n Object name: %s \n Line: %s\n' % (
+                        name, line.replace('  ', '')))
+                elif line == '\n' or line == '}':
                     continue
                 else:
                     log_unhandeled.append(' Object type: L3 Interface \n Object name: %s \n Line: %s\n' % (name, line.replace('  ', '')))
@@ -1140,7 +1162,7 @@ def fun_f5_mig(filename, project_name, mode):
         except Exception as e:
             pass
 
-        for mng_route in re.findall('(^sys management-route.+{\n(  .+\n)+^})', text, re.MULTILINE):
+        for mng_route in re.findall('(^sys management-route.+{\n(  .+\n)+^})', text, re.MULTILINE)[:-1]:
             for line in ''.join(mng_route[:-1]).splitlines():
                 # print(line)
                 if "sys management-route" in line:
@@ -1297,7 +1319,7 @@ def fun_f5_mig(filename, project_name, mode):
         tmp_list = []
         try:
             glob_settings = text[text.index('sys global-settings {'):text.index('\n}\n',
-                                                                                text.index('sys global-settings {'))]
+text.index('sys global-settings {'))]
 
             index = 0
             while index < len(glob_settings):
@@ -1311,11 +1333,12 @@ def fun_f5_mig(filename, project_name, mode):
                 x = x.split('##=##')
             # print(glob_settings.replace(glob_settings[int(x[0]):int(x[1])], glob_settings[int(x[0]):int(x[1])].replace('\n', '\\n')))
 
-            for line in glob_settings.splitlines():
+            for line in glob_settings.splitlines()[1:-1]:
                 # print(line)
                 if "hostname" in line:
                     mng_dict['ssnmp'].update({'name': list(filter(None, line.split(' ')))[1]})
-                log_unhandeled.append(' Object type: global-settings \n Object name: N/A \n Line: %s\n' % line)
+                else:
+                    log_unhandeled.append(' Object type: global-settings \n Object name: N/A \n Line: %s\n' % line)
 
         except Exception as e:
             pass
@@ -1333,11 +1356,11 @@ def fun_f5_mig(filename, project_name, mode):
         log_write = []
         log_unhandeled = []
         for device in re.findall('(^cm device (.+) {\n(  .+\n)+^})', text, re.MULTILINE):
-            if mng_dict['mmgmt']['addr'] in device[0]:
-                dev_name=re.search(r'cm device (.+) {', device[0]).group(1)
-                if '/' in dev_name:
-                    dev_name=dev_name.split('/')[2]
+            if not 'name' in mng_dict['ssnmp'] and mng_dict['mmgmt']['addr'] in device[0]:
+                dev_name=re.search(r'cm device (/.+/)?(.+) {', device[0]).group(2)
                 mng_dict['ssnmp'].update(dict(name='"'+dev_name+'"'))
+            elif 'name' in mng_dict['ssnmp'] and mng_dict['ssnmp']['name']==re.search(r'cm device (/.+/)?(.+) {', device[0]).group(2):
+                continue
             else:
                 sync_list.append(re.search(r'configsync-ip (.+)', device[0]).group(1))
                 sync_peer=re.search(r'configsync-ip (.+)', device[0])
