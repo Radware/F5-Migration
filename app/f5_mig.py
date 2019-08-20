@@ -111,6 +111,7 @@ def fun_f5_mig(filename, project_name, mode):
         global log1str, log2str
         global to_filter_list
 
+        # print("running health_check_parser")
         x1, x2 = health_check_parser(in_name)
         for ELEMENT in x1:
             log1str += ELEMENT
@@ -119,6 +120,7 @@ def fun_f5_mig(filename, project_name, mode):
             log2str += ELEMENT
             log2.write('\n###\n%s\n' % ELEMENT.replace('             ', ' '))
 
+        # print("running real_parser")
         x1, x2 = real_parser(in_name)
         for ELEMENT in x1:
             log1str += ELEMENT
@@ -127,6 +129,7 @@ def fun_f5_mig(filename, project_name, mode):
             log2str += ELEMENT
             log2.write('\n###\n%s\n' % ELEMENT.replace('             ', ' '))
 
+        # print("running group_parser")
         x1, x2 = group_parser(in_name)
         for ELEMENT in x1:
             log1str += ELEMENT
@@ -135,6 +138,7 @@ def fun_f5_mig(filename, project_name, mode):
             log2str += ELEMENT
             log2.write('\n###\n%s\n' % ELEMENT.replace('             ', ' '))
 
+        # print("running trunk_parser")
         x1, x2 = trunk_parser(in_name)
         for ELEMENT in x1:
             log1str += ELEMENT
@@ -143,6 +147,7 @@ def fun_f5_mig(filename, project_name, mode):
             log2str += ELEMENT
             log2.write('\n###\n%s\n' % ELEMENT.replace('             ', ' '))
 
+        # print("running func_vlan_parser")
         x1, x2 = func_vlan_parser(in_name)
         for ELEMENT in x1:
             log1str += ELEMENT
@@ -151,6 +156,7 @@ def fun_f5_mig(filename, project_name, mode):
             log2str += ELEMENT
             log2.write('\n###\n%s\n' % ELEMENT.replace('             ', ' '))
 
+        # print("running selfip_parser")
         x1, x2 = selfip_parser(in_name)
         for ELEMENT in x1:
             log1str += ELEMENT
@@ -159,6 +165,7 @@ def fun_f5_mig(filename, project_name, mode):
             log2str += ELEMENT
             log2.write('\n###\n%s\n' % ELEMENT.replace('             ', ' '))
 
+        # print("running prof_parser")
         x1, x2 = prof_parser(in_name)
         for ELEMENT in x1:
             log1str += ELEMENT
@@ -167,6 +174,7 @@ def fun_f5_mig(filename, project_name, mode):
             log2str += ELEMENT
             log2.write('\n###\n%s\n' % ELEMENT.replace('             ', ' '))
 
+        # print("running persist_parser")
         x1, x2 = persist_parser(in_name)
         for ELEMENT in x1:
             log1str += ELEMENT
@@ -175,6 +183,7 @@ def fun_f5_mig(filename, project_name, mode):
             log2str += ELEMENT
             log2.write('\n###\n%s\n' % ELEMENT.replace('             ', ' '))
 
+        # print("running func_virt_parser")
         x1, x2 = func_virt_parser(in_name)
         for ELEMENT in x1:
             log1str += ELEMENT
@@ -466,6 +475,24 @@ def fun_f5_mig(filename, project_name, mode):
                             memberTmpDict.update({mNamePort: 'health '})
                         else:
                             memberTmpDict.update({mNamePort: 'health '})
+                        for x in list(memberTmpDict):
+                            donerename=0
+                            for y in list(memberTmpDict):
+                                passrename=0
+                                if len(y.split(':')) == 1 or len(x.split(':')) == 1:
+                                    passrename=1
+
+                                if not (passrename) and x.split(':')[1] != y.split(':')[1] and x != y:
+                                    donerename=1
+                                    nodeDict.update({ y.split(':')[0]+"_"+y.split(':')[1]: nodeDict[y.split(':')[0]] })
+                                    nodeDict[y.split(':')[0]+"_"+y.split(':')[1]].update({ "addport": y.split(':')[1] })
+                                    memberTmpDict[y.replace(":", "_")] = memberTmpDict.pop(y)
+                            
+                            if donerename and x in memberTmpDict and not("_" in x):
+                                nodeDict.update({ x.replace(":", "_"): nodeDict[x.split(':')[0]] })
+                                nodeDict[x.replace(":", "_")].update({ "addport": x.split(':')[1] })
+                                memberTmpDict[x.replace(":", "_")] = memberTmpDict.pop(x)
+
                         new_group.update({'members': memberTmpDict})
                         # print('rd=' + rd + ', mName=' + mNamePort + ', name=' + name)
                         # print(new_group)
@@ -581,7 +608,7 @@ def fun_f5_mig(filename, project_name, mode):
                     if rd != 'Common':
                         log_write.append(
                             ' Object type: Health Check \n Object name: %s \n Found Route Domain conifuration! using RD=%s, Please address it manually:\n' % (
-                                name, ''.join(monitor)))
+                                name, rd))
                         pass
                     descrip = name
                     if len(name) > 32:
@@ -614,80 +641,85 @@ def fun_f5_mig(filename, project_name, mode):
                         new_hc.update({'dest': ip})
                     if port != "*":
                         new_hc.update({'dport': port})
-                elif "send " in line and line != '    send none' :
-                    if hcType == 'udp':
-                        log_write.append(' Object type: Health Check \n Object name: %s \n Issue: Sending string is not supported in UDP Health Checks.')
-                    if hcType in ['http', 'https']:
-                        line = line.replace('    send "', '')
-                        method = line.split(' ')[0]
-                        path = line.split(' ')[1]
+                elif "send " in line:
+                    if line != '    send none' :
+                        if hcType == 'udp':
+                            log_write.append(' Object type: Health Check \n Object name: %s \n Issue: Sending string is not supported in UDP Health Checks.')
+                        if hcType in ['http', 'https']:
+                            line = line.replace('    send "', '')
+                            method = line.split(' ')[0]
+                            path = line.split(' ')[1]
 
-                        if path[len(path) - 1] == '"':
-                            path = path[:len(path) - 1]
-                        if path[len(path) - 1] == 'n' and path[len(path) - 2] == '\\':
-                            path = path[:len(path) - 2]
-                        if path[len(path) - 1] == 'r' and path[len(path) - 2] == '\\':
-                            path = path[:len(path) - 2]
+                            if path[len(path) - 1] == '"':
+                                path = path[:len(path) - 1]
+                            if path[len(path) - 1] == 'n' and path[len(path) - 2] == '\\':
+                                path = path[:len(path) - 2]
+                            if path[len(path) - 1] == 'r' and path[len(path) - 2] == '\\':
+                                path = path[:len(path) - 2]
 
-                        line = line[line.index(path) + len(path):]
-                        # print('method='+method+', path='+path)
-                        new_hc['advtype'].update({'method': method})
-                        new_hc['advtype'].update({'path': '"' + path + '"'})
-                        tmp = line.split('\\r\\n\\r\\n')
-                        for header in tmp[0].split('\\r\\n'):
-                            tmpHeader = header.replace('\\r', '').replace('\\n', '').replace('\\', '').replace('"',
-                                                                                                               '').replace(
-                                ' ', '')
-                            # print (tmpHeader)
-                            tmpHDR = ''
-                            if "host:" in header.lower():
-                                host = header.replace(' ', '').split(':')[1]
+                            line = line[line.index(path) + len(path):]
+                            # print('method='+method+', path='+path)
+                            new_hc['advtype'].update({'method': method})
+                            new_hc['advtype'].update({'path': '"' + path + '"'})
+                            tmp = line.split('\\r\\n\\r\\n')
+                            for header in tmp[0].split('\\r\\n'):
+                                tmpHeader = header.replace('\\r', '').replace('\\n', '').replace('\\', '').replace('"',
+                                                                                                                   '').replace(
+                                    ' ', '')
+                                # print (tmpHeader)
+                                tmpHDR = ''
+                                if "host:" in header.lower():
+                                    host = header.replace(' ', '').split(':')[1]
 
-                                new_hc['advtype'].update({'host': '"' + host + '"'})
-                            # print('host='+host)
-                            elif tmpHeader in ['', '"', 'HTTP/1.1', 'HTTP/1.0', ' HTTP/1.1', ' HTTP/1.0', 'HTTP/1.1 ',
-                                               'HTTP/1.0 ']:
-                                pass
-                            else:
-                                # print("header="+header)
-                                k, v = header.split(':')
-                                # print('header name=%s, value=%s' % (k,v))
-                                if 'header' in new_hc:
-                                    tmpHDR = new_hc['header']
-                                    tmpHDR = tmpHDR + '\\r\\n' + k + ':' + v
+                                    new_hc['advtype'].update({'host': '"' + host + '"'})
+                                # print('host='+host)
+                                elif tmpHeader in ['', '"', 'HTTP/1.1', 'HTTP/1.0', ' HTTP/1.1', ' HTTP/1.0', 'HTTP/1.1 ',
+                                                   'HTTP/1.0 ']:
+                                    pass
                                 else:
-                                    tmpHDR = '\n' + k + ':' + v
-                                tmpHDR += '\\r\\n\n...'
-                                new_hc['advtype'].update({'header': tmpHDR})
-                        if method.lower() == "post":
-                            body = tmp[1].replace('\\r\\n"', '')
-                            # print('body='+body)
-                            new_hc['advtype'].update({'body': '"' + body + '"'})
-                    else:
-                        # new_hc['advtype']=line
-                        new_hc['advtype'].update({'send': line.replace('    send ', '')})
-                elif "recv " in line and line != '    recv none' :
-                    if hcType == 'udp':
-                        log_write.append(' Object type: Health Check \n Object name: %s \n Issue: Sending string is not supported in UDP Health Checks.')
-                    if hcType in ['http', 'https']:
-                        line = line.replace('    recv ', '')
-                        # print ("response="+line)
-                        if line == '"200 OK"':
-                            new_hc['advtype'].update({'response': '200 none'})
+                                    # print("header="+header)
+                                    k, v = header.split(':')
+                                    # print('header name=%s, value=%s' % (k,v))
+                                    if 'header' in new_hc:
+                                        tmpHDR = new_hc['header']
+                                        tmpHDR = tmpHDR + '\\r\\n' + k + ':' + v
+                                    else:
+                                        tmpHDR = '\n' + k + ':' + v
+                                    tmpHDR += '\\r\\n\n...'
+                                    new_hc['advtype'].update({'header': tmpHDR})
+                            if method.lower() == "post":
+                                body = tmp[1].replace('\\r\\n"', '')
+                                # print('body='+body)
+                                new_hc['advtype'].update({'body': '"' + body + '"'})
                         else:
-                            if not line.replace('    response ', '')[0] == '"':
-                                # print ('/'+line.replace('    response ', '')+'/')
-                                response_string = '"' + line.replace('    response ', '') + '"'
+                            # new_hc['advtype']=line
+                            new_hc['advtype'].update({'send': line.replace('    send ', '')})
+                elif "recv " in line:
+                    if line != '    recv none' :
+                        if hcType == 'udp':
+                            log_write.append(' Object type: Health Check \n Object name: %s \n Issue: Sending string is not supported in UDP Health Checks.')
+                        if hcType in ['http', 'https']:
+                            line = line.replace('    recv ', '')
+                            # print ("response="+line)
+                            if line == '"200 OK"':
+                                new_hc['advtype'].update({'response': '200 none'})
                             else:
-                                # print ('/'+line.replace('    response ', '')+'/')
-                                response_string = line.replace('    response ', '')
-                            new_hc['advtype'].update({'response': '200 inc ' + response_string})
-                    else:
-                        # log_write.append('please exemin:\n/c/slb/advhc/%s SCRIPT/script/expect %s\n' % (name, line.replace('    recv ', '')))
-                        new_hc['advtype'].update({'expect': line.replace('    recv ', '')})
+                                if not line.replace('    response ', '')[0] == '"':
+                                    # print ('/'+line.replace('    response ', '')+'/')
+                                    response_string = '"' + line.replace('    response ', '') + '"'
+                                else:
+                                    # print ('/'+line.replace('    response ', '')+'/')
+                                    response_string = line.replace('    response ', '')
+                                new_hc['advtype'].update({'response': '200 inc ' + response_string})
+                        else:
+                            # log_write.append('please exemin:\n/c/slb/advhc/%s SCRIPT/script/expect %s\n' % (name, line.replace('    recv ', '')))
+                            new_hc['advtype'].update({'expect': line.replace('    recv ', '')})
+                elif "recv-disable" in line:
+                    if line != '    recv-disable none' :
+                        log_write.append(' Object type: Health Check \n Object name: %s \n Issue: disable string isnt currently supported.')
                 elif 'cipherlist' in line:
                     new_hc.update({'cipher': '"' + line.replace('    cipherlist ', '') + '"', 'ssl': 'ena'})
-                elif 'defaults-from' in line or 'debug no'==line.replace('  ',''):
+                elif 'ip-dscp 0' in line or 'defaults-from' in line or 'debug no'==line.replace('  ',''):
                     ignore = 1
                 else:
                     # print(line)
@@ -745,7 +777,7 @@ def fun_f5_mig(filename, project_name, mode):
             # Continue Profile Parser!
             if rd != 'Common':
                 log_write.append(
-                    ' Object type: Profile \n Object name: %s \n Issue: Found Route Domain conifuration! using RD=%s, Please address it manually!\n' % (
+                    ' Object type: Profile \n Object name: %s \n Issue: Found Route Domain conifuration! using RD=%s, should have been migrated to common but validate manually!\n' % (
                         name, rd))
         return log_write, log_unhandeled
 
@@ -1491,6 +1523,7 @@ text.index('sys global-settings {'))]
             filter_dict.update({filt_id: {}})
             l.remove(virt)
             try:
+                print (virt)
                 vlans = re.search(r'    vlans {\n( .+\n)    }\n.+\n', virt).group(0)
                 virt = virt.replace(vlans, '')
                 if not vlans.splitlines()[-1].replace('  ', '') == 'vlans-enabled':
@@ -1504,6 +1537,7 @@ text.index('sys global-settings {'))]
                     vlan = vlans[0].replace(' ', '')
                 filter_dict[filt_id].update({'vlan': vlan})
             except Exception as e:
+                print("Found an error on line 1516")
                 print(e)
 
             try:
@@ -1547,6 +1581,13 @@ text.index('sys global-settings {'))]
                     filter_dict[filt_id].update({'name': '"' + name.replace('{', '').replace(' ', '') + '"'})
                 elif line[0:11] == 'destination':
                     dip, dport = line[12:].split(':')
+                    if "/" in dip:
+                        junk, tmp_rd, dip = dip.split('/')
+                        if rd != tmp_rd:
+                            log_write.append("Please verify object %s, inconsistancy in route domain configuration!" % name)
+                    if "%" in dip:
+                        log_write.append("Please verify object %s, route domain in destination ip will be ignored. make sure logic remained!" % name)
+                        dip = dip.split('%')[0]
                     if dip[0] == '/':
                         dip = '/'.join(list(filter(None, dip.split('/')))[1:])
                     if dip == 'any':
@@ -1586,7 +1627,7 @@ text.index('sys global-settings {'))]
                     filter_dict[filt_id].update({'action': 'redir', 'group': line.split()[1]})
                 else:
                     pass
-        return l, log_write, log_unhandeled
+        return l, log_write , log_unhandeled
 
     #####################
     #					#
