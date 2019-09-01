@@ -5,8 +5,8 @@ import os
 import tarfile
 import ipaddress
 import copy
+import sys
 # import datetime
-# import sys
 
 try:
     from app import app
@@ -68,6 +68,12 @@ def fun_f5_mig(filename, project_name, mode):
         global ha_dict
         global sync_list
         global to_filter_list
+        global snatt_dict
+        global snatp_dict
+        global rport_dict
+        rport_dict = {}
+        snatt_dict = {}
+        snatp_dict = {}
         filter_dict = {}
         compres_dict = {}
         persist_dict = {}
@@ -131,6 +137,14 @@ def fun_f5_mig(filename, project_name, mode):
 
         # print("running group_parser")
         x1, x2 = group_parser(in_name)
+        for ELEMENT in x1:
+            log1str += ELEMENT
+            log1.write('\n###\n%s\n' % ELEMENT.replace('             ', ' '))
+        for ELEMENT in x2:
+            log2str += ELEMENT
+            log2.write('\n###\n%s\n' % ELEMENT.replace('             ', ' '))
+
+        x1, x2 = snat_parser(in_name)
         for ELEMENT in x1:
             log1str += ELEMENT
             log1.write('\n###\n%s\n' % ELEMENT.replace('             ', ' '))
@@ -384,6 +398,8 @@ def fun_f5_mig(filename, project_name, mode):
                 new_group = {}
                 prio = '0'
                 str_member=''.join(member[:-1])
+                rport_flag = 0
+                rport = "0"
                 for line in str_member.splitlines():
                     # print (line)
                     if line.replace(' ', '')[0:7] == 'monitor':
@@ -466,8 +482,8 @@ def fun_f5_mig(filename, project_name, mode):
                             log_write.append(
                                 ' Object type: Group \n Object name: ' + name + ' \n Issue: Found Route Domain conifuration! using RD=%s, Please address it manually!\n')
                         # print('rd='+rd+', mName='+mNamePort+', name='+name)
-                        # if 'metric' in locals():
-                            new_group.update({'advhc': hc, 'metric': metric})
+                        if 'metric' in locals():
+                           new_group.update({'advhc': hc, 'metric': metric})
                         else:
                             new_group.update({'advhc': hc, 'metric': 'roundrobin'})
                         if 'members' in new_group:
@@ -475,8 +491,14 @@ def fun_f5_mig(filename, project_name, mode):
                             memberTmpDict.update({mNamePort: 'health '})
                         else:
                             memberTmpDict.update({mNamePort: 'health '})
+                        if not "rport" in locals() and not "donerename" in locals():
+                            rport = list(memberTmpDict)[0].split(':')[1]
                         for x in list(memberTmpDict):
                             donerename=0
+                            if len(x.split(':')) == 2 and x.split(':')[1] != rport:
+                                # print("Found different port, grp:"+name+", Was:"+rport+", Now:"+ x.split(':')[1])
+                                rport = list(x.split(':'))[1]
+                                rport_flag+=1
                             for y in list(memberTmpDict):
                                 passrename=0
                                 if len(y.split(':')) == 1 or len(x.split(':')) == 1:
@@ -484,12 +506,13 @@ def fun_f5_mig(filename, project_name, mode):
 
                                 if not (passrename) and x.split(':')[1] != y.split(':')[1] and x != y:
                                     donerename=1
-                                    nodeDict.update({ y.split(':')[0]+"_"+y.split(':')[1]: nodeDict[y.split(':')[0]] })
-                                    nodeDict[y.split(':')[0]+"_"+y.split(':')[1]].update({ "addport": y.split(':')[1] })
+                                    
+                                    nodeDict.update({ y.replace(':', '_'): nodeDict[y.split(':')[0]].copy() })
+                                    nodeDict[y.replace(':', '_')].update({ "addport": y.split(':')[1] })
                                     memberTmpDict[y.replace(":", "_")] = memberTmpDict.pop(y)
-                            
+
                             if donerename and x in memberTmpDict and not("_" in x):
-                                nodeDict.update({ x.replace(":", "_"): nodeDict[x.split(':')[0]] })
+                                nodeDict.update({ x.replace(":", "_"): nodeDict[x.split(':')[0]].copy() })
                                 nodeDict[x.replace(":", "_")].update({ "addport": x.split(':')[1] })
                                 memberTmpDict[x.replace(":", "_")] = memberTmpDict.pop(x)
 
@@ -521,31 +544,38 @@ def fun_f5_mig(filename, project_name, mode):
                 # print (tmp_dict)
                 # end of member lines
                 if tmp_dict != {}:
+                    # print(new_group['members'])
+                    # print (tmp_dict)
                     new_bkp_group = copy.deepcopy(new_group)
-                    if len(tmp_list) == 1:
+                    if len(tmp_list) == 1 and len(tmp_dict) != len(new_group['members']):
                         for member in list(new_group['members']):
                             # print(member)
                             # print(tmp_dict)
                             if member in tmp_dict:
+                                print("1. member="+member)
                                 # new_bkp_group['members'].update({member: ''})
-                                pass
                             else:
+                                print("2. member="+member)
                                 del new_group['members'][member]
                         # print(tmp_dict)
                         # print(new_group)
                         # print(new_bkp_group)
                         new_group.update({'backup': 'g' + name + '_bkp'})
                         poolDict.update({name + '_bkp': new_bkp_group})
-                    elif len(tmp_list) == 2 and len(tmp_dict) == len(new_group):
+                    elif len(tmp_list) == 2 and len(tmp_dict) == len(new_group['members']):
+                        # print(tmp_list)
                         max_val = sorted(tmp_list, reverse=True)[0]
                         for member in list(new_group['members']):
                             if member in tmp_dict and tmp_dict[member] == max_val:
+                                # print("member="+member)
                                 new_bkp_group['members'].update({member: ''})
-                            elif member in tmp_dict:
                                 del new_group['members'][member]
+                            elif member in tmp_dict:
+                                del new_bkp_group['members'][member]
                             else:
                                 print(
                                     'Unhandled exception in priority-group to backup convertion! Please check manually')
+                            # print(name)
                             # print(member)
                             # print(member in tmp_dict)
                             # print(tmp_dict)
@@ -558,7 +588,10 @@ def fun_f5_mig(filename, project_name, mode):
                             " Object type: Group \n Object name: %s \n Issue: Priority-group with more then 2 groups is being used. Please address manually\n " % name)
                 # print('name='+name)
                 # print(new_group)
+                if rport_flag==1:
+                    rport_dict.update({name: rport})
                 poolDict.update({name: new_group})
+                del rport
             for line in loglines:
                 if line[0] == '}':
                     continue
@@ -879,7 +912,8 @@ def fun_f5_mig(filename, project_name, mode):
                                 ' Object type: Virt\n Object name: %s \n SNAT Automap is used, please address manually!\n' % name)
                     # virtDict[name]['service'].update({'pip mode': y})
                     elif x == 'pool':
-                        virt_dict[name]['service'].update({'pip addr': y})
+                        # print("pip address"+y)
+                        virt_dict[name].update({ 'pip': { 'mode':'nwclss', 'nwclss v4': y.split('/')[2]+" persist disable" } })
 
             strPersist = ''
             if '    persist {' in strVirt:
@@ -932,6 +966,8 @@ def fun_f5_mig(filename, project_name, mode):
                     vip, dport = vip.split(':')
                     dport = fun_port_num_validate(dport)
                     virt_dict[name].update({'vip': vip, 'dport': dport})
+                    if dport == "80":
+                        aplic='http'
                 # VIP + PORT
                 elif 'source ' in line:
                     source = ''.join(line.split('    source '))
@@ -943,9 +979,12 @@ def fun_f5_mig(filename, project_name, mode):
                     virt_dict[name].update({'proto': ''.join(line.split('    ip-protocol '))})
                 elif '    pool ' in line:
                     if '/' in line:
-                        virt_dict[name]['service'].update({'group': (''.join(line.split('    pool ')).split('/')[2])})
+                        grp_name=(''.join(line.split('    pool ')).split('/')[2])
                     else:
-                        virt_dict[name]['service'].update({'group': line.replace('  ', '').split(' ')[1]})
+                        grp_name= line.replace('  ', '').split(' ')[1]
+                    virt_dict[name]['service'].update({'group': grp_name})
+                    if grp_name in rport_dict:
+                        virt_dict[name]['service'].update({'rport': rport_dict[grp_name]})
                 elif 'description' in line:
                     virt_dict[name].update({'name': ''.join(line.replace('  ', '').split('description '))})
                 elif 'mirror' in line:
@@ -1523,7 +1562,6 @@ text.index('sys global-settings {'))]
             filter_dict.update({filt_id: {}})
             l.remove(virt)
             try:
-                print (virt)
                 vlans = re.search(r'    vlans {\n( .+\n)    }\n.+\n', virt).group(0)
                 virt = virt.replace(vlans, '')
                 if not vlans.splitlines()[-1].replace('  ', '') == 'vlans-enabled':
@@ -1537,8 +1575,8 @@ text.index('sys global-settings {'))]
                     vlan = vlans[0].replace(' ', '')
                 filter_dict[filt_id].update({'vlan': vlan})
             except Exception as e:
-                print("Found an error on line 1516")
-                print(e)
+                exc_type, exc_obj, exc_tb = sys.exc_info()
+                print("Encountered an error while looking for VLAN in convertion of virt to filter, error on line %d" % exc_tb.tb_lineno)
 
             try:
                 irules = re.search(r'    rules {\n( .+\n)    }\n', virt).group(0)
@@ -1629,6 +1667,58 @@ text.index('sys global-settings {'))]
                     pass
         return l, log_write , log_unhandeled
 
+    def snat_parser(l):
+        log_write = []
+        log_unhandeled = []
+        
+        snatp_list = []
+
+        stop=0
+        while not stop:
+            try:
+                snatt = re.search(r'ltm snat-translation (.+) {\n( .+\n)+}\n', l).group(0)
+                l=l.replace(snatt, "")
+                
+                for line in snatt.splitlines():
+                    if 'ltm snat-translation' in line: 
+                        junk, rd, name = line.split('/')
+                        name = name.replace(' {','')
+                        snatt_dict.update({name: {}})
+                    elif '  address' in line:
+                        snatt_dict[name].update({'address': line[line.index('  address')+10:]})
+                    elif line != '}':
+                        log_unhandeled.append(' Object type: Address translation\n Object name: ' + name + '\nLine: ' + line.replace(' ', ''))
+            except Exception as e:
+                stop=1
+
+        stop=0
+        while not stop:
+            try:
+                snatp = re.search(r'ltm snatpool (.+) {\n( .+\n)+}\n', l).group(0)
+                l=l.replace(snatp, "")
+                
+                snatp_list.append(snatp)
+            except Exception as e:
+                stop=1            
+
+        for pool in snatp_list:
+            junk, rd, name = pool.splitlines()[0].split('/')
+            name = name.replace(' {','')
+            snatp_dict.update ({name: []})
+
+            try:
+                members = re.search(r'    members {\n( .+\n)+    }\n', pool).group(0)
+                for line in members.splitlines()[1:-1]:
+                    junk, rd, snat_address = line.split('/')
+                    snatp_dict[name].append(snat_address)
+            except Exception as e:
+                raise e
+
+        return log_write, log_unhandeled
+
+
+
+
     #####################
     #					#
     #	End of Parsers 	#
@@ -1711,7 +1801,18 @@ text.index('sys global-settings {'))]
                 return_string += ('        %s %s\n' % (y, monitorDict[x]['advtype'][y]))
                 out.write('        %s %s\n' % (y, monitorDict[x]['advtype'][y]))
 
+    for x in snatp_dict:
+        return_string += ('/c/slb/nwclss %s\n    type \"address\"\n    ipver v4\n' % x)
+        out.write('/c/slb/nwclss %s\n    type \"address\"\n    ipver v4\n' % x)
+        c=1
+        for y in snatp_dict[x]:
+            return_string += ('/c/slb/nwclss %s/network %d\n    net subnet %s 255.255.255.255 include\n' % (x, c, y))
+            out.write('/c/slb/nwclss %s/network %d\n    net subnet %s 255.255.255.255 include\n' % (x, c, y))
+            c+=1
+
+
     # print(virtDict)
+    # print(rport_dict)
     for x in virt_dict:
         # print('/c/slb/virt %s\n    ena\n    ipver v4\n    vip %s' % (x,virtDict[x]['vip']))
         if virt_dict[x]['vip'] == '0.0.0.0':
@@ -1726,10 +1827,15 @@ text.index('sys global-settings {'))]
         return_string += ('/c/slb/virt %s/service %s %s\n' % (x, virt_dict[x]['dport'], virt_dict[x]['aplic']))
         out.write('/c/slb/virt %s/service %s %s\n' % (x, virt_dict[x]['dport'], virt_dict[x]['aplic']))
         for y in virt_dict[x]['service']:
-            # print('    '+y+' '+virtDict[x]['service'][y])
             return_string += ('    %s %s\n' % (y, virt_dict[x]['service'][y]))
             out.write('    %s %s\n' % (y, virt_dict[x]['service'][y]))
-        if 'persist' in virt_dict[x]:
+        if 'pip' in virt_dict[x]:
+            return_string += ('/c/slb/virt %s/service %s %s/pip\n' % (x, virt_dict[x]['dport'], virt_dict[x]['aplic']))
+            out.write('/c/slb/virt %s/service %s %s/pip\n' % (x, virt_dict[x]['dport'], virt_dict[x]['aplic']))
+            for z in virt_dict[x]['pip']:
+                return_string += ('    %s %s\n' % (z, virt_dict[x]['pip'][z]))
+                out.write('    %s %s\n' % (z, virt_dict[x]['pip'][z]))
+        elif 'persist' in virt_dict[x]:
             # print(virtDict[x]['persist'])
             if virt_dict[x]['persist']['type'] == 'cookie':
                 if 'method' in virt_dict[x]['persist']:
@@ -1791,21 +1897,21 @@ text.index('sys global-settings {'))]
         if 'ssl' in virt_dict[x]:
             if 'be' in virt_dict[x]['ssl'] and 'fe' in virt_dict[x]['ssl']:
                 return_string += (
-                        '/c/slb/ssl/sslpol %s/fessl e/backend/ssl e\n/c/slb/virt %s/service %s %s/ssl/sslpol %s\n' % (
+                        '/c/slb/ssl/sslpol %s/fessl e/convert d/backend/ssl e\n/c/slb/virt %s/service %s %s/ssl/sslpol %s\n' % (
                     x[:32], x, virt_dict[x]['dport'], virt_dict[x]['aplic'], x[:32]))
-                out.write('/c/slb/ssl/sslpol %s/fessl e/backend/ssl e\n/c/slb/virt %s/service %s %s/ssl/sslpol %s\n' % (
+                out.write('/c/slb/ssl/sslpol %s/fessl e/convert d/backend/ssl e\n/c/slb/virt %s/service %s %s/ssl/sslpol %s\n' % (
                     x[:32], x, virt_dict[x]['dport'], virt_dict[x]['aplic'], x[:32]))
             elif 'fe' in virt_dict[x]['ssl']:
                 return_string += (
-                        '/c/slb/ssl/sslpol %s/fessl e/backend/ssl d\n/c/slb/virt %s/service %s %s/ssl/sslpol %s\n' % (
+                        '/c/slb/ssl/sslpol %s/fessl e/convert d/backend/ssl d\n/c/slb/virt %s/service %s %s/ssl/sslpol %s\n' % (
                     x[:32], x, virt_dict[x]['dport'], virt_dict[x]['aplic'], x[:32]))
-                out.write('/c/slb/ssl/sslpol %s/fessl e/backend/ssl d\n/c/slb/virt %s/service %s %s/ssl/sslpol %s\n' % (
+                out.write('/c/slb/ssl/sslpol %s/fessl e/convert d/backend/ssl d\n/c/slb/virt %s/service %s %s/ssl/sslpol %s\n' % (
                     x[:32], x, virt_dict[x]['dport'], virt_dict[x]['aplic'], x[:32]))
             elif 'be' in virt_dict[x]['ssl']:
                 return_string += (
-                        '/c/slb/ssl/sslpol %s/fessl d/backend/ssl e\n/c/slb/virt %s/service %s %s/ssl/sslpol %s\n' % (
+                        '/c/slb/ssl/sslpol %s/fessl d/convert d/backend/ssl e\n/c/slb/virt %s/service %s %s/ssl/sslpol %s\n' % (
                     x[:32], x, virt_dict[x]['dport'], virt_dict[x]['aplic'], x[:32]))
-                out.write('/c/slb/ssl/sslpol %s/fessl d/backend/ssl e\n/c/slb/virt %s/service %s %s/ssl/sslpol %s\n' % (
+                out.write('/c/slb/ssl/sslpol %s/fessl d/convert d/backend/ssl e\n/c/slb/virt %s/service %s %s/ssl/sslpol %s\n' % (
                     x[:32], x, virt_dict[x]['dport'], virt_dict[x]['aplic'], x[:32]))
 
     for x in compres_dict:
@@ -1915,6 +2021,7 @@ text.index('sys global-settings {'))]
             # print('    %s %s' % (y, filter_dict[x][y]))
             return_string += ('    %s %s\n' % (y, filter_dict[x][y]))
             out.write('    %s %s\n' % (y, filter_dict[x][y]))
+
 
     c=0
     for y in ha_dict['peer']:
