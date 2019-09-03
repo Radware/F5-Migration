@@ -314,7 +314,7 @@ def fun_f5_mig(filename, project_name, mode):
                         ' Object type: Real\n Object name: ' + name + '\nLine: ' + line.replace(' ', ''))
             if rd != 'Common':
                 log_write.append(
-                    ' Object type: Real \n Object name: ' + name + ' \n Issue: Found Route Domain conifuration! using RD=%s, Please address it manually!\n')
+                    ' Object type: Real \n Object name: %s \n Issue: Found Route Domain conifuration! using RD=%s, Please address it manually!\n' % (name, rd))
         return log_write, log_unhandeled
 
     #################
@@ -360,7 +360,7 @@ def fun_f5_mig(filename, project_name, mode):
                                 junk, tmprd, tmphc = x.split('/')
                                 if tmprd != 'Common':
                                     log_write.append(
-                                        ' Object type: Group \n Object name: ' + name + ' \n Issue: Found Route Domain conifuration! using RD=%s, Please address it manually!\n')
+                                        ' Object type: Group \n Object name: %s \n Issue: Found Route Domain conifuration! using RD=%s, Please address it manually!\n' % (name, tmprd))
                             elif '    monitor ' in x:
                                 tmphc = x.replace('    monitor ', '')
                             else:
@@ -386,6 +386,9 @@ def fun_f5_mig(filename, project_name, mode):
                     log_write.append(
                         " Object type: Group \n Object name: %s \n Issue: Prioroty Group Activation is being set to: %s\n Please make sure autoconvertion worked :)\n" % (
                             name, line.split('min-active-members ')[1]))
+                elif "description" in line:
+                    descrip = line.replace('    description ', '').replace('}', '')
+                    print ("Name="+name+" ,descrip="+descrip)
                 elif 'load-balancing-mode' in line:
                     metric = line.replace('    load-balancing-mode ', '')
                     if metric in metricDict:
@@ -416,7 +419,7 @@ def fun_f5_mig(filename, project_name, mode):
                                 if '/' in x:
                                     junk, tmprd, tmphc = x.split('/')
                                     if tmprd != 'Common':
-                                        log_write.append(' Object type: Group \n Object name: ' + name + ' \n Issue: Found Route Domain conifuration! using RD=%s, Please address it manually!\n')
+                                        log_write.append(' Object type: Group \n Object name: %s\n Issue: Found Route Domain conifuration! using RD=%s, Please address it manually!\n' % (name, tmprd))
                                 elif '    monitor ' in x:
                                     tmphc = x.replace('    monitor ', '')
                                 else:
@@ -591,6 +594,10 @@ def fun_f5_mig(filename, project_name, mode):
                 if rport_flag==1:
                     rport_dict.update({name: rport})
                 poolDict.update({name: new_group})
+                if "descrip" in locals() and descrip != "":
+                    print (name)
+                    poolDict[name].update({'name': descrip})
+                    del descrip
                 del rport
             for line in loglines:
                 if line[0] == '}':
@@ -752,7 +759,7 @@ def fun_f5_mig(filename, project_name, mode):
                         log_write.append(' Object type: Health Check \n Object name: %s \n Issue: disable string isnt currently supported.')
                 elif 'cipherlist' in line:
                     new_hc.update({'cipher': '"' + line.replace('    cipherlist ', '') + '"', 'ssl': 'ena'})
-                elif 'ip-dscp 0' in line or 'defaults-from' in line or 'debug no'==line.replace('  ',''):
+                elif 'ip-dscp 0' in line or 'defaults-from' in line or 'debug no'==line.replace('  ','') or "adaptive disable" in line:
                     ignore = 1
                 else:
                     # print(line)
@@ -950,7 +957,7 @@ def fun_f5_mig(filename, project_name, mode):
                 if 'mask' in line:
                     if line.split('    mask ')[1] != '255.255.255.255':
                         log_unhandeled.append(
-                            ' Object type: Virt \n Object name: ' + name + '\n Issue: Virt destination is not /32, conversion to Filter is not yet supported:\n' + ''.join(
+                            ' Object type: Virt \n Object name: ' + name + '\n Issue: Virt destination is not /32, will try to convert to filter. please make sure manyally:\n' + ''.join(
                                 virt[:-1]) + '\n')
                         to_filter_list.append(''.join(virt[:-1]))
                         del_virt = 1
@@ -985,6 +992,8 @@ def fun_f5_mig(filename, project_name, mode):
                     virt_dict[name]['service'].update({'group': grp_name})
                     if grp_name in rport_dict:
                         virt_dict[name]['service'].update({'rport': rport_dict[grp_name]})
+                    else:
+                        virt_dict[name]['service'].update({'rport': '0'})
                 elif 'description' in line:
                     virt_dict[name].update({'name': ''.join(line.replace('  ', '').split('description '))})
                 elif 'mirror' in line:
@@ -1763,6 +1772,9 @@ text.index('sys global-settings {'))]
         if 'backup' in poolDict[x]:
             return_string += ('    backup %s\n' % poolDict[x]['backup'])
             out.write('    backup %s\n' % poolDict[x]['backup'])
+        if 'name' in poolDict[x]:
+            return_string += ('    name %s\n' % poolDict[x]['name'])
+            out.write('    name %s\n' % poolDict[x]['name'])
         # print("/c/slb/group %s\n    ipver v4\n    health %s\n" % (x, poolDict[x]['advhc']))
         for y in poolDict[x]['members']:
             # print("    add %s" % y.split(':')[0])
@@ -1950,9 +1962,9 @@ text.index('sys global-settings {'))]
     for x in ifDict:
         # print ('/c/l3/if %d\n    ena\n    ipver v4\n    address %s\n    mask %s\n    vlan %s\n    name %s' % (ifDict[x]['if_id'], ifDict[x]['address'], ifDict[x]['mask'], ifDict[x]['vlan'], x))
         return_string += (
-                '\n/c/l3/if %d\n    ena\n    ipver v4\n    address %s\n    mask %s\n    vlan %s\n    descr %s\n' % (
+                '\n/c/l3/if %d\n    ena\n    ipver v4\n    addr %s\n    mask %s\n    vlan %s\n    descr %s\n' % (
             ifDict[x]['if_id'], ifDict[x]['addr'], ifDict[x]['mask'], ifDict[x]['vlan'], x))
-        out.write('\n/c/l3/if %d\n    ena\n    ipver v4\n    address %s\n    mask %s\n    vlan %s\n    descr %s\n' % (
+        out.write('\n/c/l3/if %d\n    ena\n    ipver v4\n    addr %s\n    mask %s\n    vlan %s\n    descr %s\n' % (
             ifDict[x]['if_id'], ifDict[x]['addr'], ifDict[x]['mask'], ifDict[x]['vlan'], x))
         if 'peer' in ifDict[x]:
             return_string+= '    peer %s\n' % ifDict[x]['peer']
