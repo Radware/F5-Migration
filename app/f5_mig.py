@@ -375,12 +375,14 @@ def fun_f5_mig(filename, project_name, mode):
                                 monitorDict[hc]['advtype'].update(
                                     {'expr': monitorDict[hc]['advtype']['expr'] + '&(' + str(tmphc) + ')'})
                     else:
-                        if '/' == line.replace(' ', '')[0]:
-                            junk, rd, hc = line.split('/')
+                        if '/' == line.replace(' ', '')[7]:
+                            junk, rd, hc = line.replace(' ', '').split('/')
                         else:
                             hc = line.replace(' monitor', '').replace(' ', '')
                             rd = 'Common'
 
+                        if hc in advhcSupTypes:
+                            hc=advhcSupTypes[hc]
                         hc, log_write = fun_hc_long_name(hc, name, log_write)
                 elif "min-active-members" in line:
                     log_write.append(
@@ -1901,9 +1903,10 @@ text.index('sys global-settings {'))]
                 return_string += '    connmgt ena 10\n'
                 out.write('    connmgt ena 10\n')
         for z in virt_dict[x]['adv']:
-            return_string += ('/c/slb/virt %s/service %s %s/%s %s\n' % (
+            # print (z)
+            return_string += ('/c/slb/virt %s/service %s %s%s %s\n' % (
                 x, virt_dict[x]['dport'], virt_dict[x]['aplic'], z, virt_dict[x]['adv'][z]))
-            out.write('/c/slb/virt %s/service %s %s/%s %s\n' % (
+            out.write('/c/slb/virt %s/service %s %s%s %s\n' % (
                 x, virt_dict[x]['dport'], virt_dict[x]['aplic'], z, virt_dict[x]['adv'][z]))
         # print('/c/slb/virt %s/service %s %s/%s %s\n' % (x, virtDict[x]['dport'], virtDict[x]['aplic'], z, virtDict[x]['adv'][z]))
         if 'ssl' in virt_dict[x]:
