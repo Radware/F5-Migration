@@ -58,6 +58,9 @@ prefixToMaskDict = {
     '32': '255.255.255.255'
 }
 
+default_advhc_dict = {
+	"https_443" : { "name": "https_443", "type": "http", "dport": '443', 'ssl': 'ena', 'inter': '5' , 'retry':'3', 'timeout': '5', 'advtype': {} }
+}
 
 advhcSupTypes = {
 	'none': 'NoCheck',
@@ -71,6 +74,7 @@ advhcSupTypes = {
 	'http': 'http',
 	'https': 'https',
 	'gateway-icmp': 'icmp',
+	'gateway_icmp': 'icmp',
 	'icmp': 'icmp',
 	'imap': 'imap',
 	'ldap': 'ldap',
