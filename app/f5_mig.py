@@ -240,6 +240,23 @@ def fun_f5_mig(filename, project_name, mode):
             log2str += ELEMENT
             log2.write('\n###\n%s\n' % ELEMENT.replace('             ', ' '))
 
+    def fun_extract_name (str_name, log_write):
+        if '/' in str_name:
+            name_split= str_name.split('/')
+            if len(name_split) == 3:
+                junk, rd, name = name_split
+            else:
+                rd = name_split[1]
+                name = name_split[len(name_split)-1]
+                log_write.append(
+                ' Object type: Group \n Object name: %s \n Found both Route Domain and what looks like iAPP conifuration! using RD=%s,full object name=%s Please address it manually:\n' % (
+                    name, rd, '/'.join(name_split)))
+            name = name.replace(' {', '')
+        else:
+            rd = "Common"
+            name = str_name
+        return name, rd, log_write
+
     def fun_port_num_validate(dport):
         try:
             int(dport)
@@ -412,16 +429,18 @@ def fun_f5_mig(filename, project_name, mode):
                         else:
                             hc = line.replace(' monitor', '').replace(' ', '')
                             rd = 'Common'
-
+                        
                         if hc in advhcSupTypes:
                             hc=advhcSupTypes[hc]
+                        # print(hc)
+                        # print(monitorDict)
                         hc, log_write = fun_hc_long_name(hc, name, log_write)
-                        
                         if not (hc in monitorDict or hc in advhcSupTypes):
                             if hc in default_advhc_dict:
                                 monitorDict.update({ hc: default_advhc_dict[hc] })
                             else:
                                 log_write.append(' Object type: Health Check \n Object name: %s\n Issue: found health check config in group %s that is was not defined (may be default) and not predifind in Global Vars please correct manually!\n' % (hc, name))
+                    # print(hc)
                 elif "min-active-members" in line:
                     log_write.append(
                         " Object type: Group \n Object name: %s \n Issue: Prioroty Group Activation is being set to: %s\n Please make sure autoconvertion worked :)\n" % (
@@ -444,7 +463,6 @@ def fun_f5_mig(filename, project_name, mode):
                 rport_flag = 0
                 rport = "0"
                 for line in str_member.splitlines():
-                    # print (line)
                     if line.replace(' ', '')[0:7] == 'monitor':
                         if "and" in line:
                             hc = name + '_logexp'
@@ -514,6 +532,8 @@ def fun_f5_mig(filename, project_name, mode):
                             else:
                                 nodeDict.update({mem_name: {'rip': mem_name, 'health': mon, 'weight': weight,'maxcon 0 logic': ''}})
                     # print (memberTmpDict)
+                    elif "app-service " == line.replace('  ','')[0:12]:
+                        continue
                     elif "/" in line or (":" in line and "{" in line):
                         # print (line)
                         loglines.remove(line)
@@ -666,6 +686,7 @@ def fun_f5_mig(filename, project_name, mode):
 
         for monitor in re.findall('(^ltm monitor.+{\n(  .+\n)+^})', text, re.MULTILINE):
             strMonitor = ''.join(monitor)
+            # print(strMonitor)
             x1, x2 = strMonitor.splitlines()[0].replace('ltm monitor ', '').replace('Common', '').split(' ')[0:2]
             if x1 == x2:
                 log_unhandeled.append(
@@ -675,26 +696,18 @@ def fun_f5_mig(filename, project_name, mode):
                 log_unhandeled.append(
                     ' Object type: Health Check\n Object name: %s \n Issue: This object is not currently supported, please update script or address manually\n' % x1)
                 continue
-            del x1, x2
             new_hc = {}
+            if x1.lower() == 'radius':
+                new_hc.update({'type':'auth'})
+            elif x1.lower() == 'radius_accounting' or x1.lower() == 'radius-accounting':
+                new_hc.update({'type':'account'})
+            del x1, x2
             fun_clear_monitor_vars()
             for line in strMonitor.splitlines():
                 if "ltm monitor" in line:
                     line = line.replace(' {', '').replace('ltm monitor ', '')
                     hcType, name = line.split(' ')
-                    if '/' in name:
-                        name_split = name.split('/')
-                        if len(name_split) == 3:
-                            junk, rd, name = name_split
-                        else:
-                            rd = name_split[1]
-                            name = name_split[len(name_split)-1]
-                            log_write.append(
-                            ' Object type: Health Check \n Object name: %s \n Found both Route Domain and what looks like iAPP conifuration! using RD=%s,full object name=%s Please address it manually:\n' % (
-                                name, rd, '/'.join(name_split)))
-                    else:
-                        rd = 'Common'
-
+                    name, rd, log_write = fun_extract_name(name, log_write)
                     if rd != 'Common':
                         log_write.append(
                             ' Object type: Health Check \n Object name: %s \n Found Route Domain conifuration! using RD=%s, Please address it manually:\n' % (
@@ -708,7 +721,7 @@ def fun_f5_mig(filename, project_name, mode):
                                 name, hc_id))
                         long_names_dict.update({name: hc_id})
                         name = hc_id
-                    new_hc.update({'type': advhcSupTypes[hcType], 'advtype': {}, 'name': '"' + descrip[:32] + '"'})
+                    new_hc.update({'hcType': advhcSupTypes[hcType], 'advtype': {}, 'name': '"' + descrip[:32] + '"'})
                 elif "interval" in line:
                     inter = line.split('interval ')[1]
                     new_hc.update({'inter': inter})
@@ -1045,10 +1058,7 @@ def fun_f5_mig(filename, project_name, mode):
                 elif 'ip-protocol' in line:
                     virt_dict[name].update({'proto': ''.join(line.split('    ip-protocol '))})
                 elif '    pool ' in line:
-                    if '/' in line:
-                        grp_name=(''.join(line.split('    pool ')).split('/')[2])
-                    else:
-                        grp_name= line.replace('  ', '').split(' ')[1]
+                    grp_name, junk, log_write = fun_extract_name(line.split('    pool ')[1], log_write)
                     virt_dict[name]['service'].update({'group': grp_name})
                     if grp_name in rport_dict:
                         virt_dict[name]['service'].update({'rport': rport_dict[grp_name]})
@@ -1845,32 +1855,33 @@ text.index('sys global-settings {'))]
             out.write("    add %s\n" % y.split(':')[0])
 
     for x in monitorDict:
+        # print(monitorDict)
         # print('\n/c/slb/advhc/%s %s\n    ena\n    inter %s\n    timeout %s\n    retry %s' % (x, monitorDict[x]['type'].upper(), monitorDict[x]['inter'], monitorDict[x]['timeout'], monitorDict[x]['retry']))
-        if not 'type' in monitorDict[x]:
+        if not 'hcType' in monitorDict[x]:
             continue
-        return_string += ('\n/c/slb/advhc/health %s %s\n' % (x, monitorDict[x]['type'].upper()))
-        out.write('\n/c/slb/advhc/health %s %s\n' % (x, monitorDict[x]['type'].upper()))
-        # return_string+=('\n/c/slb/advhc/%s %s\n    ena\n' % (x, monitorDict[x]['type'].upper())
-        # out.write ('\n/c/slb/advhc/%s %s\n    ena\n' % (x, monitorDict[x]['type'].upper())
+        return_string += ('\n/c/slb/advhc/health %s %s\n' % (x, monitorDict[x]['hcType'].upper()))
+        out.write('\n/c/slb/advhc/health %s %s\n' % (x, monitorDict[x]['hcType'].upper()))
+        # return_string+=('\n/c/slb/advhc/%s %s\n    ena\n' % (x, monitorDict[x]['hcType'].upper())
+        # out.write ('\n/c/slb/advhc/%s %s\n    ena\n' % (x, monitorDict[x]['hcType'].upper())
         for y in monitorDict[x]:
-            if not y in ['type', 'advtype']:
+            if not y in ['hcType', 'advtype']:
                 # print('    %s %s' % (y, monitorDict[x][y] ))
                 return_string += ('    %s %s\n' % (y, monitorDict[x][y]))
                 out.write('    %s %s\n' % (y, monitorDict[x][y]))
         if monitorDict[x]['advtype'] != {}:
-            if 'http' in monitorDict[x]['type']:
+            if 'http' in monitorDict[x]['hcType']:
                 # print('    http')
                 return_string += '    http\n'
                 out.write('    http\n')
             else:
-                # print('    %s' % monitorDict[x]['type'],)
-                if monitorDict[x]['type'] == 'logexp':
-                    return_string += ('    %s %s\n' % (monitorDict[x]['type'], monitorDict[x]['advtype']['expr']))
-                    out.write('    %s %s\n' % (monitorDict[x]['type'], monitorDict[x]['advtype']['expr']))
+                # print('    %s' % monitorDict[x]['hcType'],)
+                if monitorDict[x]['hcType'] == 'logexp':
+                    return_string += ('    %s %s\n' % (monitorDict[x]['hcType'], monitorDict[x]['advtype']['expr']))
+                    out.write('    %s %s\n' % (monitorDict[x]['hcType'], monitorDict[x]['advtype']['expr']))
                     continue
                 else:
-                    return_string += ('    %s\n' % monitorDict[x]['type'])
-                    out.write('    %s\n' % monitorDict[x]['type'])
+                    return_string += ('    %s\n' % monitorDict[x]['hcType'])
+                    out.write('    %s\n' % monitorDict[x]['hcType'])
             for y in monitorDict[x]['advtype']:
                 # print('        %s %s' % (y, monitorDict[x]['advtype'][y]),)
                 return_string += ('        %s %s\n' % (y, monitorDict[x]['advtype'][y]))
@@ -1886,7 +1897,7 @@ text.index('sys global-settings {'))]
             c+=1
 
 
-    # print(virtDict)
+    # print(virt_dict)
     # print(rport_dict)
     for x in virt_dict:
         # print('/c/slb/virt %s\n    ena\n    ipver v4\n    vip %s' % (x,virtDict[x]['vip']))
