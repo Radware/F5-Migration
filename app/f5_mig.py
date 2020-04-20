@@ -60,6 +60,7 @@ def fun_f5_mig(filename, project_name, mode):
         global nodeDict
         global monitorDict
         global ifDict
+        global floatVlanDict
         global floatIfDict
         global vlanDict
         global tmpDict
@@ -86,6 +87,7 @@ def fun_f5_mig(filename, project_name, mode):
         nodeDict = {}
         monitorDict = {}
         ifDict = {}
+        floatVlanDict = {}
         floatIfDict = {}
         vlanDict = {}
         tmpDict = {}
@@ -366,6 +368,7 @@ def fun_f5_mig(filename, project_name, mode):
             loglines = []
             tmp_list = []
             tmp_dict = {}
+            prioDict={'prio_list':[]}
             new_bkp_group = {}
             strPool = ''.join(pool[:-1])
             for line in strPool.splitlines():
@@ -399,23 +402,23 @@ def fun_f5_mig(filename, project_name, mode):
                             if '/' in x:
                                 name_split = x.split('/')
                                 if len(name_split) == 3:
-                                    junk, rd, name = name_split
+                                    junk, rd, hcname = name_split
                                 else:
                                     rd = name_split[1]
-                                    name = name_split[len(name_split)-1]
+                                    hcname = name_split[len(name_split)-1]
                                     log_write.append(
                                     ' Object type: Group \n Object name: %s \n Found both Route Domain and what looks like iAPP conifuration! using RD=%s,full object name=%s Please address it manually:\n' % (
-                                        name, rd, '/'.join(name_split)))
+                                        hcname, rd, '/'.join(name_split)))
 
-                                if tmprd != 'Common':
+                                if rd != 'Common':
                                     log_write.append(
-                                        ' Object type: Group \n Object name: %s \n Issue: Found Route Domain conifuration! using RD=%s, Please address it manually!\n' % (name, tmprd))
+                                        ' Object type: Group \n Object name: %s \n Issue: Found Route Domain conifuration! using RD=%s, Please address it manually!\n' % (hcname, tmprd))
                             elif '    monitor ' in x:
                                 tmphc = x.replace('    monitor ', '')
                             else:
                                 tmphc = x
                             tmphc= tmphc.strip()
-                            tmphc, log_write = fun_hc_long_name(tmphc, name, log_write)
+                            tmphc, log_write = fun_hc_long_name(tmphc, hcname, log_write)
 
                             if monitorDict[hc]['advtype']['expr'] == '':
                                 monitorDict[hc]['advtype'].update(
@@ -442,9 +445,8 @@ def fun_f5_mig(filename, project_name, mode):
                                 log_write.append(' Object type: Health Check \n Object name: %s\n Issue: found health check config in group %s that is was not defined (may be default) and not predifind in Global Vars please correct manually!\n' % (hc, name))
                     # print(hc)
                 elif "min-active-members" in line:
-                    log_write.append(
-                        " Object type: Group \n Object name: %s \n Issue: Prioroty Group Activation is being set to: %s\n Please make sure autoconvertion worked :)\n" % (
-                            name, line.split('min-active-members ')[1]))
+                    if line.replace(' ','').replace('min-active-members','') != '1':
+                        log_write.append(" Object type: Group \n Object name: %s \n Issue: Priority-group activation with non default minimum active members. Please address manually\n " % name)
                 elif "description" in line:
                     descrip = line.replace('    description ', '').replace('}', '')
                     # print ("Name="+name+" ,descrip="+descrip)
@@ -595,64 +597,15 @@ def fun_f5_mig(filename, project_name, mode):
                                 mNamePort.split(':')[0])
                         # print('name='+name+', IP='+ip)
                     elif "priority-group" in line:
+                        loglines.remove(line)
                         prio = list(filter(None, line.split()))[1]
-                        tmp_dict.update({mNamePort: prio})
-                        if not prio in tmp_list:
-                            tmp_list.append(prio)
-                    # log_write.append(" Object type: Group \n Object name: %s \n Issue: Priority-group %s is used for \n  real: %s please address it manually\n" % (name, re.sub(r'.+priority-group ', '', line), mNamePort.split(':')[0]))
+                        prioDict.update({mNamePort: prio})
+                        if not prio in prioDict['prio_list']:
+                            prioDict['prio_list'].append(prio)
                     elif line.replace('}', '').replace(' ', '').replace('{', '').replace('members', '') != '':
                         loglines.remove(line)
                         if line[0] == '}':
                             continue
-                        log_unhandeled.append(' Object type: Group\n Object name:' + str(name) + '\nLine: ' + line)
-                # print(new_group)
-                # print (tmp_dict)
-                # end of member lines
-                if tmp_dict != {}:
-                    # print(new_group['members'])
-                    # print (tmp_dict)
-                    new_bkp_group = copy.deepcopy(new_group)
-                    if len(tmp_list) == 1 and len(tmp_dict) != len(new_group['members']):
-                        for member in list(new_group['members']):
-                            # print(member)
-                            # print(tmp_dict)
-                            if member in tmp_dict:
-                                # print("1. member="+member)
-                                new_bkp_group['members'].update({member: ''})
-                            else:
-                                # print("2. member="+member)
-                                del new_group['members'][member]
-                        # print(tmp_dict)
-                        # print(new_group)
-                        # print(new_bkp_group)
-                        new_group.update({'backup': 'g' + name + '_bkp'})
-                        poolDict.update({name + '_bkp': new_bkp_group})
-                    elif len(tmp_list) == 2 and len(tmp_dict) == len(new_group['members']):
-                        # print(tmp_list)
-                        max_val = sorted(tmp_list, reverse=True)[0]
-                        for member in list(new_group['members']):
-                            if member in tmp_dict and tmp_dict[member] == max_val:
-                                # print("member="+member)
-                                new_bkp_group['members'].update({member: ''})
-                                del new_group['members'][member]
-                            elif member in tmp_dict:
-                                del new_bkp_group['members'][member]
-                            else:
-                                log_unhandeled.append(
-                                    'Unhandled exception in priority-group to backup convertion! Please check manually')
-                            # print(name)
-                            # print(member)
-                            # print(member in tmp_dict)
-                            # print(tmp_dict)
-                            # print(tmp_dict[member]==max_val)
-                        new_group.update({'backup': 'g' + name + '_bkp'})
-                        poolDict.update({name + '_bkp': new_bkp_group})
-                    else:
-                        # print(" Object type: Group \n Object name: %s \n Issue: Priority-group with more then 2 groups is being used. Please address manually\n " % name )
-                        log_write.append(
-                            " Object type: Group \n Object name: %s \n Issue: Priority-group with more then 2 groups is being used. Please address manually\n " % name)
-                # print('name='+name)
-                # print(new_group)
                 if rport_flag==1:
                     rport_dict.update({name: rport})
                 poolDict.update({name: new_group})
@@ -661,6 +614,33 @@ def fun_f5_mig(filename, project_name, mode):
                     poolDict[name].update({'name': descrip})
                     del descrip
                 del rport
+                if prioDict['prio_list'] != []:
+                    new_bkp_group = copy.deepcopy(poolDict[name])
+                    if len(prioDict['prio_list']) == 1 and len(poolDict[name]['members']) == (len(prioDict)-1):
+                        pass
+                    elif len(prioDict['prio_list']) == 1 and len(poolDict[name]['members']) != (len(prioDict)-1):
+                        for member in list(poolDict[name]['members']):
+                            if member in prioDict:
+                                del poolDict[name]['members'][member]
+                            else:
+                                del new_bkp_group['members'][member]
+                        poolDict[name].update({'backup': 'g' + name + '_bkp'})
+                        poolDict.update({name + '_bkp': new_bkp_group})
+                    elif len(prioDict['prio_list']) == 2 and len(poolDict[name]['members']) == (len(prioDict)-1):
+                        max_val = sorted(prioDict['prio_list'], reverse=True)[0]
+                        for member in list(new_group['members']):
+                            if member in prioDict and prioDict[member] == max_val:
+                                del poolDict[name]['members'][member]
+                            elif member in prioDict:
+                                del new_bkp_group['members'][member]
+                            else:
+                                log_unhandeled.append(
+                                    'Unhandled exception in priority-group to backup convertion! Please check manually')
+                        poolDict[name].update({'backup': 'g' + name + '_bkp'})
+                        poolDict.update({name + '_bkp': new_bkp_group})
+                    else:
+                        log_write.append(
+                            " Object type: Group \n Object name: %s \n Issue: Priority-group with more then 2 groups is being used. Please address manually\n " % name)
             for line in loglines:
                 if line[0] == '}':
                     continue
@@ -824,8 +804,10 @@ def fun_f5_mig(filename, project_name, mode):
                     new_hc.update({'cipher': '"' + line.replace('    cipherlist ', '') + '"', 'ssl': 'ena'})
                 elif 'ip-dscp 0' in line or 'defaults-from' in line or 'debug no'==line.replace('  ','') or "adaptive disable" in line:
                     ignore = 1
+                elif 'compatibility enabled' in line and hcType == 'https':
+                    new_hc.update({'cipher': '"ALL"'})
                 else:
-                    # print(line)
+                    print(line)
                     if hcType in advhcSupTypes:
                         log_unhandeled.append(' Object type: Health Check\n Object name: %s\n Line: %s\n' % (
                             str(name), line.replace('  ', '')))
@@ -984,8 +966,10 @@ def fun_f5_mig(filename, project_name, mode):
                                 ' Object type: Virt\n Object name: %s \n SNAT Automap is used, please address manually!\n' % name)
                     # virtDict[name]['service'].update({'pip mode': y})
                     elif x == 'pool':
-                        # print("pip address"+y)
-                        virt_dict[name].update({ 'pip': { 'mode':'nwclss', 'nwclss v4': y.split('/')[2]+" persist disable" } })
+                        if "/" in y:
+                            virt_dict[name].update({ 'pip': { 'mode':'nwclss', 'nwclss v4': y.split('/')[2]+" persist disable" } })
+                        else:
+                            virt_dict[name].update({ 'pip': { 'mode':'nwclss', 'nwclss v4': y+" persist disable" } })
 
             strPersist = ''
             if '    persist {' in strVirt:
@@ -1002,6 +986,7 @@ def fun_f5_mig(filename, project_name, mode):
 
             strVirtVlan = ''
             if '    vlans {' in strVirt:
+                vlansflag=1
                 strVirtVlan = re.search(r'(.+vlans \{(.*\n)+.+vlans-.+)', strVirt).group(0)
                 log_unhandeled.append(
                     ' Object type: Virt \n Object name: ' + name + '\n Issue: Vlan specific virt is not supported, please address manyally:\n' + strVirtVlan)
@@ -1017,6 +1002,8 @@ def fun_f5_mig(filename, project_name, mode):
                                                                                                                  '').replace(
                 'persist {\n', '')
             strPersist = strPersist.replace(' #=#', '#=#').replace('}', '')
+            if "vlans-disabled" in strVirt:
+                strVirt = re.sub(r'\s+vlans-disabled', '', strVirt)
 
             for line in strVirt.splitlines():
                 if 'mask' in line:
@@ -1127,7 +1114,7 @@ def fun_f5_mig(filename, project_name, mode):
                     else:
                         log_write.append(
                             ' Object type: Virt \n Object name: %s \n Issue: required unknown persistance profile: %s, please address manually\n' % (
-                                name, line))
+                                name, line.replace('#=#',' {')+"}"))
                 else:
                     log_unhandeled.append(' Object type: Virt \n Object name: %s \n Line: %s\n' % (name, line))
                 if 'persist' in virt_dict[name] and virt_dict[name]['persist']['type'] == 'ssl':
@@ -1237,7 +1224,12 @@ def fun_f5_mig(filename, project_name, mode):
             strPortLD = ''
             if '    allow-service {' in strSelfIp:
                 strPortLD = re.search(r'( {4}allow-service \{(.*\n)+ {4}\}\n)', strSelfIp).group(0)
-
+                if strPortLD.replace(' ','') == "allow-service{\ndefault\n}\n":
+                    strSelfIp = strSelfIp.replace(strPortLD, '')
+                    strPortLD = "allow-service { default } "
+                if strPortLD.replace(' ','') == "allow-service{\nall\n}\n":
+                    strSelfIp = strSelfIp.replace(strPortLD, '')
+                    strPortLD = ""
             strSelfIp = strSelfIp.replace(strPortLD, '')
             for line in strSelfIp.splitlines():
                 if "net self" in line:
@@ -1282,12 +1274,14 @@ def fun_f5_mig(filename, project_name, mode):
                         ' Object type: Vlan \n Object name: %s \n Issue: Found Route Domain conifuration! using RD=%s, Please address it manually!\n' % (
                             name, rd))
 
-                if isSelf:
-                    tmpDict.update({'if_id': if_id})
-                    ifDict.update({name: tmpDict})
-                else:
-                    floatIfDict.update({name: tmpDict})
             # end of lines loop
+            if isSelf:
+                tmpDict.update({'if_id': if_id})
+                ifDict.update({name: tmpDict})
+                if not vlanDict[vlan]['tag'] in floatVlanDict:
+                    floatVlanDict.update({vlanDict[vlan]['tag']: str(if_id)})
+            else:
+                floatIfDict.update({name: tmpDict})
             if strPortLD != '':
                 log_write.append(' Object type: L3 Interface \n Object name: %s \n Issue: Port Lockdown is not currently supported, Please address manually!\n%s\n' % (
                     name, strPortLD))
@@ -1336,7 +1330,7 @@ def fun_f5_mig(filename, project_name, mode):
                         net = net.replace('/', ' ')
                 elif "gateway" in line:
                     gw = line.replace('  ', '').split(' ')[1]
-                else:
+                elif not line == "}":
                     log_unhandeled.append(
                         ' Object type: Route \n Object name: ' + name + '\n Line: ' + line.replace('  ', ''))
             if net == 'default':
@@ -1365,7 +1359,7 @@ def fun_f5_mig(filename, project_name, mode):
                         mng_dict['ntp'].update({'tzone': timezone_dict[ntp_tz]})
                     else:
                         mng_dict['ntp'].update({'tzone': '0'})
-                else:
+                elif line != "}":
                     log_unhandeled.append(
                         ' Object type: L3 Interface \n Object name: ' + name + '\n Line: ' + line.replace('  ',
                                                                                                           '') + '\n')
@@ -1784,14 +1778,21 @@ text.index('sys global-settings {'))]
                 stop=1            
 
         for pool in snatp_list:
-            junk, rd, name = pool.splitlines()[0].split('/')
+            if "/" in pool.splitlines()[0]:
+                junk, rd, name = pool.splitlines()[0].split('/')
+            else:
+                rd='Common'
+                name = pool.splitlines()[0].split()[2]
             name = name.replace(' {','')
             snatp_dict.update ({name: []})
 
             try:
                 members = re.search(r'    members {\n( .+\n)+    }\n', pool).group(0)
                 for line in members.splitlines()[1:-1]:
-                    junk, rd, snat_address = line.split('/')
+                    if "/" in line:
+                        junk, rd, snat_address = line.split('/')
+                    else:
+                        snat_address = line.split()[0]
                     snatp_dict[name].append(snat_address)
             except Exception as e:
                 raise e
@@ -2048,6 +2049,14 @@ text.index('sys global-settings {'))]
             return_string+= '    peer %s\n' % ifDict[x]['peer']
             out.write('    peer %s\n' % ifDict[x]['peer'])
 
+    float_id=0
+    for x in floatIfDict:
+        float_id+=1
+        return_string += (
+                '\n/c/l3/ha/floatip %d\n    ena\n    ipver v4\n    addr %s\n    if %s\n' % (
+            float_id, floatIfDict[x]['addr'], floatVlanDict[floatIfDict[x]['vlan']]))
+        out.write('\n/c/l3/ha/floatip %d\n    ena\n    ipver v4\n    addr %s\n    if %s\n' % (
+            float_id, floatIfDict[x]['addr'], floatVlanDict[floatIfDict[x]['vlan']]))
     for x in mng_dict:
         if x[0] == '/':
             # print('/c/sys\n    %s %s' % (x[1:], mng_dict[x]))
