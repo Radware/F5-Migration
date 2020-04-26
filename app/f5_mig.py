@@ -592,10 +592,26 @@ def fun_f5_mig(filename, project_name, mode):
                         loglines.remove(line)
                         junk, ip = line.split('address ')
                         if not mNamePort.split(':')[0] in nodeDict:
-                            log_write.append(
-                                " Object type: Group \n Object name: " + name + "\n Issue: Node not found or ip missmatch! Please check manually for %s\n" %
-                                mNamePort.split(':')[0])
+                            mNamePort_found=0
+                            log_write.append(" Object type: Group \n Object name: " + name + "\n Issue: Node not found or ip missmatch! Please check manually for %s\n" %mNamePort.split(':')[0])
+                        else:
+                            mNamePort_found=1
                         # print('name='+name+', IP='+ip)
+                    elif line.replace(' ','')[0:11] == "description":
+                        member_descript=line[line.index("description")+12:]
+                        if not '"' in member_descript:
+                            member_descript=("\"%s\"" % member_descript)
+                        try:
+                            if mNamePort.split(':')[0] in nodeDict:
+                                if 'name' in nodeDict[mNamePort.split(':')[0]]:
+                                    if nodeDict[mNamePort.split(':')[0]]['name'] != member_descript:
+                                        log_write.append(" Object type: Group \n Object name: " + name + "\n Issue: Node description (%s) is different from group member description (%s)! please check manually\n" % (nodeDict[mNamePort.split(':')[0]]['name'], member_descript))
+                                else:
+                                    nodeDict[mNamePort.split(':')[0]].update({'name': member_descript})
+                            else:
+                                log_write.append(" Object type: Group \n Object name: " + name + "\n Issue: Node not found! Please check manually for %s\n" % mNamePort.split(':')[0])
+                        except Exception as e:
+                            raise e
                     elif "priority-group" in line:
                         loglines.remove(line)
                         prio = list(filter(None, line.split()))[1]
@@ -603,7 +619,11 @@ def fun_f5_mig(filename, project_name, mode):
                         if not prio in prioDict['prio_list']:
                             prioDict['prio_list'].append(prio)
                     elif line.replace('}', '').replace(' ', '').replace('{', '').replace('members', '') != '':
-                        loglines.remove(line)
+                        try:
+                            loglines.remove(line)
+                        except Exception as e:
+                            exc_type, exc_obj, exc_tb = sys.exc_info()
+                            print("Encountered an error while correcting log for group members, error on line %d" % exc_tb.tb_lineno)
                         if line[0] == '}':
                             continue
                 if rport_flag==1:
@@ -665,8 +685,7 @@ def fun_f5_mig(filename, project_name, mode):
         log_unhandeled = []
 
         for monitor in re.findall('(^ltm monitor.+{\n(  .+\n)+^})', text, re.MULTILINE):
-            strMonitor = ''.join(monitor)
-            # print(strMonitor)
+            strMonitor = ''.join(monitor[:-1])
             x1, x2 = strMonitor.splitlines()[0].replace('ltm monitor ', '').replace('Common', '').split(' ')[0:2]
             if x1 == x2:
                 log_unhandeled.append(
@@ -681,6 +700,12 @@ def fun_f5_mig(filename, project_name, mode):
                 new_hc.update({'type':'auth'})
             elif x1.lower() == 'radius_accounting' or x1.lower() == 'radius-accounting':
                 new_hc.update({'type':'account'})
+            elif x1 == 'ldap':
+                if "username" in strMonitor and "password" in strMonitor and "base" in strMonitor:
+                    for x in ["username", "password", "base"]:
+                        globals()[x] = strMonitor[strMonitor.index(x)+9:strMonitor.index('\n',strMonitor.index(x))]
+                        strMonitor=strMonitor[0:strMonitor.index(x)]+strMonitor[strMonitor.index('\n',strMonitor.index(x)):]
+                    new_hc.update({'advtype':{'bind': ("%s %s %s" % (base, username, password))}})
             del x1, x2
             fun_clear_monitor_vars()
             for line in strMonitor.splitlines():
@@ -806,8 +831,12 @@ def fun_f5_mig(filename, project_name, mode):
                     ignore = 1
                 elif 'compatibility enabled' in line and hcType == 'https':
                     new_hc.update({'cipher': '"ALL"'})
+                elif line.replace(' ','')[0:11] == "description":
+                    new_hc.update({'name':line[12:]})
+                elif line.replace(' ','')[0:11] == "app-service" or line.replace(' ', '')=="}" or line.replace(' ','')=='':
+                    pass
                 else:
-                    print(line)
+                    # print(name, hcType ,line)
                     if hcType in advhcSupTypes:
                         log_unhandeled.append(' Object type: Health Check\n Object name: %s\n Line: %s\n' % (
                             str(name), line.replace('  ', '')))
@@ -887,7 +916,11 @@ def fun_f5_mig(filename, project_name, mode):
                     line = line.replace('ltm persistence ', '').replace(' {', '')
                     # print(line)
                     if '/' in line:
-                        persistType, rd, name = line.split('/')
+                        linesplit=line.split('/')
+                        lenlinesplit=len(linesplit)
+                        persistType=linesplit[0]
+                        rd = linesplit[1]
+                        name = linesplit[lenlinesplit-1]
                     else:
                         persistType, name = line.split(' ')
                         rd = 'Common'
@@ -1298,16 +1331,19 @@ def fun_f5_mig(filename, project_name, mode):
 
         log_write = []
         log_unhandeled = []
-
         try:
             mng_dict.update({'mmgmt': {}})
-            mng_ip, mng_mask = re.search(r'(sys management-ip (.+) { })', text).group(0).replace('sys management-ip ',
+            mng_ip, mng_mask = re.search(r'(sys management-ip (.+) {)', text).group(0).replace('sys management-ip ',
                                                                                                  '').split('/')
             mng_mask = prefixToMaskDict[mng_mask.split(' ')[0]]
             mng_dict['mmgmt'].update({'addr': mng_ip, 'mask': mng_mask})
         except Exception as e:
-            pass
+            exc_type, exc_obj, exc_tb = sys.exc_info()
+            # print("Encountered an error while parsing management ip, error on line %d, %s" % (exc_tb.tb_lineno,e))
 
+        if "sys management-dhcp" in text:
+            mng_dict['mmgmt'].update({'dhcp': 'ena'})
+                
         for mng_route in re.findall('(^sys management-route.+{\n(  .+\n)+^})', text, re.MULTILINE)[:-1]:
             for line in ''.join(mng_route[:-1]).splitlines():
                 # print(line)
@@ -1365,7 +1401,9 @@ def fun_f5_mig(filename, project_name, mode):
                                                                                                           '') + '\n')
 
         except Exception as e:
+            exc_type, exc_obj, exc_tb = sys.exc_info()
             pass
+            # print("Encountered an error while parsing NTP, error on line %d" % exc_tb.tb_lineno)
 
         try:
             tmp_dict = {}
@@ -1503,7 +1541,9 @@ text.index('sys global-settings {'))]
         log_write = []
         log_unhandeled = []
         for device in re.findall('(^cm device (.+) {\n(  .+\n)+^})', text, re.MULTILINE):
-            if not 'name' in mng_dict['ssnmp'] and mng_dict['mmgmt']['addr'] in device[0]:
+            if not 'addr' in mng_dict['mmgmt']:
+                pass
+            elif not 'name' in mng_dict['ssnmp'] and mng_dict['mmgmt']['addr'] in device[0]:
                 dev_name=re.search(r'cm device (/.+/)?(.+) {', device[0]).group(2)
                 mng_dict['ssnmp'].update(dict(name='"'+dev_name+'"'))
             elif 'name' in mng_dict['ssnmp'] and mng_dict['ssnmp']['name']==re.search(r'cm device (/.+/)?(.+) {', device[0]).group(2):
@@ -1523,18 +1563,18 @@ text.index('sys global-settings {'))]
                 if unicast_ip:
                     unicast_ip=unicast_ip.group(2)
 
-                # print(device[0])
+                
                 for self in ifDict:
                     tmp_ip=ifDict[self]['addr']+'/'+ifDict[self]['mask']
                     for entry in list(ipaddress.ip_network(tmp_ip, False).hosts()):
-                        if ipaddress.ip_address(mirror_ip)==entry:
+                        if mirror_ip and ipaddress.ip_address(mirror_ip)==entry:
                             ifDict[self]['peer']=mirror_ip
                             if 'def' in ha_dict:
                                 ha_dict['def'].append( str(ifDict[self]['if_id']) )
                                 ha_dict['def'] = list(set(ha_dict['def']))
                             else:
                                 ha_dict.update({'def': [str(ifDict[self]['if_id'])]})
-                        if ipaddress.ip_address(unicast_ip)==entry:
+                        if unicast_ip and ipaddress.ip_address(unicast_ip)==entry:
                             ifDict[self]['peer']=unicast_ip
                             if 'def' in ha_dict:
                                 ha_dict['def'].append( str(ifDict[self]['if_id']) )
@@ -1557,6 +1597,7 @@ text.index('sys global-settings {'))]
         log_unhandeled = []
 
         for route in re.findall('(^net route .+{\n(  .+\n)+^})', text, re.MULTILINE):
+            pool=""
             strRoute = ''.join(route[:-1])
             if not '  network ' in strRoute:
                 log_write.append(
@@ -1580,12 +1621,21 @@ text.index('sys global-settings {'))]
                     net = line.split()[1]
                     if net == 'default':
                         net = '0.0.0.0 0.0.0.0'
+                    elif '%' in net:
+                        log_write.append('Route domain found in route defeniton, please address manually to route %s\n' % (net))
                     else:
                         net, mask = net.split('/')
                         net = net + ' ' + prefixToMaskDict[mask]
-            if net == '0.0.0.0 0.0.0.0':
+                elif line.replace(' ','')[0:4]=="pool":
+                    pool=line[line.index('pool')+5:]
+                    log_write.append(' Object type: Route \n Object name: N/A \n Issue: using group (%s) as next-hop, please address manually\n' % (pool))
+            if pool != "":
+                pass
+            elif net == '0.0.0.0 0.0.0.0':
                 gw_id += 1
                 gw_dict.update({gw_id: {'addr': gw, 'ena': ' '}})
+            elif '%' in net:
+                pass
             else:
                 route_list.append('%s %s' % (net, gw))
         return log_write, log_unhandeled
@@ -1605,6 +1655,8 @@ text.index('sys global-settings {'))]
 
         for trunk in re.findall('(^net trunk .+{\n(  .+\n)+^})', text, re.MULTILINE):
             strTrunk = ''.join(trunk[:-1])
+            if not "interfaces" in strTrunk:
+                continue
             trunk_name = strTrunk.splitlines()[0].replace('net trunk ', '').replace(' {', '')
             strTrunk = '\n'.join(strTrunk.replace('  ', '').splitlines()[1:-1])
             trunk_mem = list(filter(None, strTrunk[strTrunk.index('{') + 1:strTrunk.index('}')].split('\n')))
@@ -1638,30 +1690,36 @@ text.index('sys global-settings {'))]
             filter_dict.update({filt_id: {}})
             l.remove(virt)
             try:
-                vlans = re.search(r'    vlans {\n( .+\n)    }\n.+\n', virt).group(0)
-                virt = virt.replace(vlans, '')
-                if not vlans.splitlines()[-1].replace('  ', '') == 'vlans-enabled':
-                    print('ERROR! ' + vlans.splitlines()[-1])
-                vlans = vlans.splitlines()[1:-2]
-                if len(vlans) > 1:
+                vlans = re.search(r'    vlans {\n( .+\n)    }\n.+\n', virt)
+                if vlans == None:
                     vlan = 'any'
-                elif vlans[0].replace(' ', '') in vlanDict:
-                    vlan = vlanDict[vlans[0].replace(' ', '')]['tag']
                 else:
-                    vlan = vlans[0].replace(' ', '')
-                filter_dict[filt_id].update({'vlan': vlan})
+                    vlans=vlans.group(0)
+                    virt = virt.replace(vlans, '')
+                    if not vlans.splitlines()[-1].replace('  ', '') == 'vlans-enabled':
+                        print('ERROR! ' + vlans.splitlines()[-1])
+                    vlans = vlans.splitlines()[1:-2]
+                    if len(vlans) > 1:
+                        vlan = 'any'
+                    elif vlans[0].replace(' ', '') in vlanDict:
+                        vlan = vlanDict[vlans[0].replace(' ', '')]['tag']
+                    else:
+                        vlan = vlans[0].replace(' ', '')
+                    filter_dict[filt_id].update({'vlan': vlan})
             except Exception as e:
                 exc_type, exc_obj, exc_tb = sys.exc_info()
                 print("Encountered an error while looking for VLAN in convertion of virt to filter, error on line %d" % exc_tb.tb_lineno)
-
+            
             try:
-                irules = re.search(r'    rules {\n( .+\n)    }\n', virt).group(0)
-                virt = virt.replace(irules, '')
-                irules = irules.replace('    ', '').replace('rules {', '').replace('}', '')
-            # print(list(filter(None, irules.splitlines())))
+                irules = re.search(r'    rules {\n( .+\n)    }\n', virt)
+                if irules != None:
+                    irules=irules.group(0)
+                    virt = virt.replace(irules, '')
+                    irules = irules.replace('    ', '').replace('rules {', '').replace('}', '')
+                    log_write.append("Virt \"%s\" uses the following iRules \"%s\", please convert manually " % (*virt.replace('{', '').splitlines()[0].split()[-1:], ','.join(list(filter(None, irules.splitlines())))))
             except Exception as e:
-                # print (e)
-                pass
+                exc_type, exc_obj, exc_tb = sys.exc_info()
+                print("Encountered an error while looking for iRules in convertion of virt to filter, error on line %d" % exc_tb.tb_lineno)
 
             try:
                 profiles = re.search(r'    profiles {\n( .+\n)    }\n', virt).group(0)
@@ -1678,7 +1736,7 @@ text.index('sys global-settings {'))]
                     x, y = line.split()
                     if x == 'type':
                         if y == 'automap' or y == 'auto':
-                            print('Automap is used')
+                            log_write.append("Please verify object %s, inconsistancy in route domain configuration!" % name)
                     else:
                         pass
                 virt = virt.replace(str_snat, '')
@@ -1689,7 +1747,12 @@ text.index('sys global-settings {'))]
                 if line[0:12] == 'ltm virtual ':
                     line = line.replace('ltm virtual ', '')
                     if '/' in line:
-                        rd, name = list(filter(None, line.split('/')))
+                        linesplit=list(filter(None, line.split('/')))
+                        lenlinesplit=len(linesplit)
+                        rd=linesplit[0]
+                        name = linesplit[lenlinesplit-1]
+                        if lenlinesplit>1:
+                            log_write.append("found iAPP used in VIRT name: %s!" % line)
                     else:
                         name = line.split()[0]
                     filter_dict[filt_id].update({'name': '"' + name.replace('{', '').replace(' ', '') + '"'})
