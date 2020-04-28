@@ -25,7 +25,6 @@ def fun_f5_mig(filename, project_name, mode):
     global lacp_id
     global trunk_id
     global filt_id
-    global cntrule_id
     global taggedPorts
     global loglines
     global tmp_list
@@ -1671,7 +1670,6 @@ def fun_f5_mig(filename, project_name, mode):
 
 
     def ltm_policy_parser(text):
-        global cntrule_id
         if len(cntrule_dict.keys()) != 0 or len(cntclss_dict.keys()) != 0:
             return [], []
         log_write = []
@@ -1973,7 +1971,7 @@ def fun_f5_mig(filename, project_name, mode):
                                 log_write.append("Found use of Snat Auto, please address manually!\n"+virt)
                         else:
                             log_unhandeled.append(' Object type: Address translation\n Object name: N/A \nLine: ' + x + "," + y)
-                  virt = virt.replace(str_snat, '')
+                    virt = virt.replace(str_snat, '')
             except Exception as e:
                 exc_type, exc_obj, exc_tb = sys.exc_info()
                 print("Encountered an error while looking for profiles in convertion of virt to filter, error on line %d, error=%s" % (exc_tb.tb_lineno, e))
