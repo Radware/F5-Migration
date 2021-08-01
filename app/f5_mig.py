@@ -2124,6 +2124,7 @@ def fun_f5_mig(filename, project_name, mode):
         print("Now Parsing %s" % file)
         f = open(file, 'r')
         fun_parsers_runner(f.read())
+        print("Finished with %s" % file)
         f.close()
 
     for x in nodeDict:
