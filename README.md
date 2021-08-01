@@ -1,4 +1,8 @@
 # F5-Migration
+[![Issues](https://img.shields.io/github/issues/Radware/F5-Migration)](https://github.com/Radware/F5-Migration/issues)
+[![Commit](https://img.shields.io/github/last-commit/Radware/F5-Migration)]()
+[![made-with-python](https://img.shields.io/badge/Made%20with-Python-1f425f.svg)](https://www.python.org/)
+
 
 ## Table Of Contents ###
 - [Description](#description )

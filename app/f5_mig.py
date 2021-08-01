@@ -831,7 +831,7 @@ def fun_f5_mig(filename, project_name, mode):
                 elif "recv " in line:
                     if line != '    recv none' :
                         if hcType == 'udp':
-                            log_write.append(' Object type: Health Check \n Object name: %s \n Issue: Sending string is not supported in UDP Health Checks.')
+                            log_write.append(' Object type: Health Check \n Object name: %s \n Issue: Sending string is not supported in UDP Health Checks.' % name)
                         if hcType in ['http', 'https']:
                             line = line.replace('    recv ', '')
                             # print ("response="+line)
@@ -850,7 +850,7 @@ def fun_f5_mig(filename, project_name, mode):
                             new_hc['advtype'].update({'expect': line.replace('    recv ', '')})
                 elif "recv-disable" in line:
                     if line != '    recv-disable none' :
-                        log_write.append(' Object type: Health Check \n Object name: %s \n Issue: disable string isnt currently supported.')
+                        log_write.append(' Object type: Health Check \n Object name: %s \n Issue: disable string isnt currently supported.' % name)
                 elif 'cipherlist' in line:
                     new_hc.update({'cipher': '"' + line.replace('    cipherlist ', '') + '"', 'ssl': 'ena'})
                 elif 'ip-dscp 0' in line or 'defaults-from' in line or 'debug no'==line.replace('  ','') or "adaptive disable" in line:
