@@ -9,9 +9,11 @@ RUN apk add --no-cache python3 && \
     rm -r /root/.cache
 
 COPY . /app
+
 WORKDIR /app
 
-expose 3011
+EXPOSE 3011
+
 RUN pip install -U Flask
 
 ENV FLASK_APP=browse.py
