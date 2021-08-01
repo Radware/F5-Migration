@@ -1,7 +1,12 @@
 import sys
-from f5_mig import *
+from app.f5_mig import *
 
 if len(sys.argv)>1:
-	fun_f5_mig(sys.argv[1], 'local', 0)
+	file_names=sys.argv[1:]
 else:
-	fun_f5_mig(input("Please provide path to config files\n"), 'local', 0)
+	file_names=input("Please provide path to config files\n").replace('"','')
+
+c=0
+for i in file_names:
+	fun_f5_mig(i, 'local_'+str(c), 0)
+	c+=1

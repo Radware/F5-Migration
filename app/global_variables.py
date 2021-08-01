@@ -58,6 +58,9 @@ prefixToMaskDict = {
     '32': '255.255.255.255'
 }
 
+default_advhc_dict = {
+	"https_443" : { "name": "https_443", "type": "http", "dport": '443', 'ssl': 'ena', 'inter': '5' , 'retry':'3', 'timeout': '5', 'advtype': {} }
+}
 
 advhcSupTypes = {
 	'none': 'NoCheck',
@@ -71,6 +74,7 @@ advhcSupTypes = {
 	'http': 'http',
 	'https': 'https',
 	'gateway-icmp': 'icmp',
+	'gateway_icmp': 'icmp',
 	'icmp': 'icmp',
 	'imap': 'imap',
 	'ldap': 'ldap',
@@ -79,8 +83,9 @@ advhcSupTypes = {
 	'logexp': 'logexp',
 	'': 'nntp',
 	'pop3': 'pop3',
-	'radius': 'radius-aa',
-	'radius_accounting': 'radius-acc',
+	'radius': 'radius',
+	'radius_accounting': 'radius',
+	'radius-accounting': 'radius',
 	'': 'radius-auth',
 	'': 'rtsp',
 	'': 'script',
@@ -3173,6 +3178,7 @@ dport_dict = {
 	"nati-logos": 2343,
 	"nati-svrloc": 3580,
 	"nati-vi-server": 3363,
+	"nat-stun-port": 3478,
 	"nat-pmp": 5351,
 	"nat-pmp-status": 5350,
 	"nattyserver": 3753,
