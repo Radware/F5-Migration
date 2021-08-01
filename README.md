@@ -31,10 +31,10 @@ For example :
 ```
 # python local_runner.py bigip.conf
 ```
-To use more than one "bigip.conf" or "bigip_base.conf" file use $val$ as delimiter between files<br>
+It's possible to run more than one "bigip.conf" or "bigip_base.conf" file<br>
 For example : 
 ```
-# python local_runner.py bigip.conf$val$bigip_base.conf
+# python local_runner.py bigip.conf bigip_base.conf
 ```
 
 ### Using Docker container ###
