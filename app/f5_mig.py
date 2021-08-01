@@ -787,40 +787,36 @@ def fun_f5_mig(filename, project_name, mode):
                             else: 
                                 method = "GET"
                                 path = line.split(' ')[0]
-
+                            
                             if path[len(path) - 1] == '"':
                                 path = path[:len(path) - 1]
                             if path[len(path) - 1] == 'n' and path[len(path) - 2] == '\\':
                                 path = path[:len(path) - 2]
                             if path[len(path) - 1] == 'r' and path[len(path) - 2] == '\\':
                                 path = path[:len(path) - 2]
-
+                            if "HTTP/1." in path:
+                                path = path[:path.index("HTTP/1.")]
                             line = line[line.index(path) + len(path):]
                             # print('method='+method+', path='+path)
                             new_hc['advtype'].update({'method': method})
                             new_hc['advtype'].update({'path': '"' + path + '"'})
                             tmp = line.split('\\r\\n\\r\\n')
                             for header in tmp[0].split('\\r\\n'):
-                                tmpHeader = header.replace('\\r', '').replace('\\n', '').replace('\\', '').replace('"',
-                                                                                                                   '').replace(
-                                    ' ', '')
+                                tmpHeader = header.replace('\\r', '').replace('\\n', '').replace('\\', '').replace('"','').replace(' ', '')
                                 # print (tmpHeader)
                                 tmpHDR = ''
                                 if "host:" in header.lower():
                                     host = header.replace(' ', '').split(':')[1]
-
                                     new_hc['advtype'].update({'host': '"' + host + '"'})
                                 # print('host='+host)
-                                elif tmpHeader in ['', '"', 'HTTP/1.1', 'HTTP/1.0', ' HTTP/1.1', ' HTTP/1.0', 'HTTP/1.1 ',
-                                                   'HTTP/1.0 ']:
+                                elif tmpHeader in ['', '"', 'HTTP/1.1', 'HTTP/1.0', ' HTTP/1.1', ' HTTP/1.0', 'HTTP/1.1 ','HTTP/1.0 ']:
                                     pass
                                 else:
-                                    # print("header="+header)
                                     k, v = header.split(':')
                                     # print('header name=%s, value=%s' % (k,v))
-                                    if 'header' in new_hc:
-                                        tmpHDR = new_hc['header']
-                                        tmpHDR = tmpHDR + '\\r\\n' + k + ':' + v
+                                    if 'header' in new_hc['advtype']:
+                                        tmpHDR = new_hc['advtype']['header'].replace('\\r\\n\n...','')
+                                        tmpHDR = tmpHDR + '\n' + k + ':' + v
                                     else:
                                         tmpHDR = '\n' + k + ':' + v
                                     tmpHDR += '\\r\\n\n...'
