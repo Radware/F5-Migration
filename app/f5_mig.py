@@ -417,7 +417,7 @@ def fun_f5_mig(filename, project_name, mode):
                             long_names_dict.update({hc: hc_id})
                             hc = hc_id
                         monitorDict.update({hc: {'name': hc_descrip, 'hcType': 'logexp', 'advtype': {'expr': ''}}})
-                        tmphc = ''
+                        hcname = ''
                         for x in line.split(' and '):
                             if '/' in x:
                                 name_split = x.split('/')
@@ -434,20 +434,20 @@ def fun_f5_mig(filename, project_name, mode):
                                     log_write.append(
                                         ' Object type: Group \n Object name: %s \n Issue: Found Route Domain conifuration! using RD=%s, Please address it manually!\n' % (hcname, tmprd))
                             elif '    monitor ' in x:
-                                tmphc = x.replace('    monitor ', '')
-                                if tmphc in long_names_dict:
-                                    hcname=monitorDict[long_names_dict[tmphc]]['name']
+                                hcname = x.replace('    monitor ', '')
+                                if hcname in long_names_dict:
+                                    hcname=monitorDict[long_names_dict[hcname]]['name']
                             else:
-                                tmphc = x
-                            tmphc= tmphc.strip()
-                            tmphc, log_write = fun_hc_long_name(tmphc, hcname, log_write)
+                                hcname = x
+                            hcname= hcname.strip()
+                            hcname, log_write = fun_hc_long_name(hcname, hcname, log_write)
 
                             if monitorDict[hc]['advtype']['expr'] == '':
                                 monitorDict[hc]['advtype'].update(
-                                    {'expr': monitorDict[hc]['advtype']['expr'] + '(' + str(tmphc) + ')'})
+                                    {'expr': monitorDict[hc]['advtype']['expr'] + '(' + str(hcname) + ')'})
                             else:
                                 monitorDict[hc]['advtype'].update(
-                                    {'expr': monitorDict[hc]['advtype']['expr'] + '&(' + str(tmphc) + ')'})
+                                    {'expr': monitorDict[hc]['advtype']['expr'] + '&(' + str(hcname) + ')'})
                     else:
                         if '/' == line.replace(' ', '')[7]:
                             junk, rd, hc, log_write = fun_rd_split(line.replace(' ', '').split('/'), "Health Check", log_write)
@@ -1629,12 +1629,11 @@ def fun_f5_mig(filename, project_name, mode):
             elif 'name' in mng_dict['ssnmp'] and mng_dict['ssnmp']['name']==re.search(r'cm device (/.+/)?(.+) {', device[0]).group(2):
                 continue
             else:
-                sync_list.append(re.search(r'configsync-ip (.+)', device[0]).group(1))
                 sync_peer=re.search(r'configsync-ip (.+)', device[0])
                 if sync_peer:
                     sync_peer=sync_peer.group(1)
-
-                ha_dict['peer'].append( sync_peer )
+                    sync_list.append(sync_peer)
+                    ha_dict['peer'].append( sync_peer )
                 mirror_ip = re.search(r'mirror-ip (.+)', device[0])
                 if mirror_ip:
                     mirror_ip=mirror_ip.group(1)
@@ -1919,7 +1918,6 @@ def fun_f5_mig(filename, project_name, mode):
         for virt in l:
             filt_id += 50
             filter_dict.update({filt_id: {}})
-            l.remove(virt)
             try:
                 vlans = re.search(r'    vlans {\n( .+\n)    }\n.+\n', virt)
                 if vlans == None:
@@ -1963,8 +1961,9 @@ def fun_f5_mig(filename, project_name, mode):
                 print("Encountered an error while looking for profiles in convertion of virt to filter, error on line %d, error=%s" % (exc_tb.tb_lineno, e))
 
             try:
-                str_snat = re.search(r'(    source-address-translation {\n([^}]+\n)+    })', virt).group(0)
+                str_snat = re.search(r'(    source-address-translation {\n([^}]+\n)+    })', virt)
                 if str_snat != None:
+                    str_snat=str_snat.group(0)
                     for line in str_snat.replace('  ', '').splitlines()[1:-1]:
                         x, y = line.split()
                         if x == 'type':
@@ -2009,6 +2008,8 @@ def fun_f5_mig(filename, project_name, mode):
                     if dmask == 'any':
                         dmask = '0.0.0.0'
                     filter_dict[filt_id].update({'dmask': dmask})
+                elif line[:11] == 'ip-protocol':
+                    filter_dict[filt_id].update({'proto': line[12:]})
                 elif line[0:26] == 'source-address-translation':
                     # print(line)
                     sip, smask = line[7:].split('/')
@@ -2038,7 +2039,7 @@ def fun_f5_mig(filename, project_name, mode):
                     filter_dict[filt_id].update({'action': 'redir', 'group': line.split()[1]})
                 else:
                     pass
-        return l, log_write , log_unhandeled
+        return [], log_write , log_unhandeled
 
     def snat_parser(l):
         log_write = []
