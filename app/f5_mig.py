@@ -812,7 +812,6 @@ def fun_f5_mig(filename, project_name, mode):
                                 elif tmpHeader in ['', '"', 'HTTP/1.1', 'HTTP/1.0', ' HTTP/1.1', ' HTTP/1.0', 'HTTP/1.1 ','HTTP/1.0 ']:
                                     pass
                                 else:
-                                    print(header)
                                     k, v = header.split(':')
                                     # print('header name=%s, value=%s' % (k,v))
                                     if 'header' in new_hc['advtype']:
