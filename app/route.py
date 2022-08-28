@@ -1,7 +1,7 @@
 #!/usr/bin/python
 
 from flask import Flask, render_template, request, send_file, redirect, flash
-from werkzeug import secure_filename
+from werkzeug.utils import secure_filename
 import re, os, datetime, tarfile
 from app import app
 from app.f5_mig import *
