@@ -6,8 +6,6 @@ import tarfile
 import ipaddress
 import copy
 import sys
-import json
-# import datetime
 
 try:
     from app import app
@@ -352,10 +350,13 @@ def fun_f5_mig(filename, project_name, mode):
                     if '{' in line and '}' in line:
                         log_write.append(
                             ' Object type: Real \n Object name: %s \n Issue: Found multiple healthchecks and did not join them to one LOGEXP please perform manually!\n' % (name))
+                    elif "and" in line:
+                        log_write.append(
+                            ' Object type: Real \n Object name: %s \n Issue: Found multiple healthchecks and did not join them to one LOGEXP please perform manually!\n' % (name))
                     elif '/' in line:
-                        junk, rd, hc = line.split('/')
+                        _, rd, hc = line.split('/')
                     else:
-                        junk, hc = line[8:].split(' ')
+                        _, hc = line[8:].split(' ')
 
                     hc, log_write = fun_hc_long_name(hc, name, log_write)
                     nodeDict[name].update({'health': hc})
@@ -435,7 +436,7 @@ def fun_f5_mig(filename, project_name, mode):
 
                                 if rd != 'Common':
                                     log_write.append(
-                                        ' Object type: Group \n Object name: %s \n Issue: Found Route Domain conifuration! using RD=%s, Please address it manually!\n' % (hcname, tmprd))
+                                        ' Object type: Group \n Object name: %s \n Issue: Found Route Domain conifuration! using RD=%s, Please address it manually!\n' % (hcname, rd))
                             elif '    monitor ' in x:
                                 hcname = x.replace('    monitor ', '')
                                 if hcname in long_names_dict:
@@ -625,7 +626,7 @@ def fun_f5_mig(filename, project_name, mode):
                                     memberTmpDict[y.replace(
                                         ":", "_")] = memberTmpDict.pop(y)
 
-                            if donerename and x in memberTmpDict and not("_" in x):
+                            if donerename and x in memberTmpDict and not ("_" in x):
                                 nodeDict.update(
                                     {x.replace(":", "_"): nodeDict[x.split(':')[0]].copy()})
                                 nodeDict[x.replace(":", "_")].update(
@@ -760,6 +761,7 @@ def fun_f5_mig(filename, project_name, mode):
                 new_hc.update({'type': 'account'})
             elif x1 == 'ldap':
                 if "username" in strMonitor and "password" in strMonitor and "base" in strMonitor:
+                    base = username = password = ""
                     for x in ["username", "password", "base"]:
                         globals()[x] = strMonitor[strMonitor.index(
                             x) + 9:strMonitor.index('\n', strMonitor.index(x))]
@@ -812,6 +814,8 @@ def fun_f5_mig(filename, project_name, mode):
                     if port != "*":
                         new_hc.update({'dport': port})
                 elif "send " in line:
+                    while "  " in line:
+                        line = line.replace('  ', ' ')
                     if line != '    send none':
                         if hcType == 'udp':
                             log_write.append(
@@ -2007,8 +2011,13 @@ def fun_f5_mig(filename, project_name, mode):
                         log_write.append(
                             'Route domain found in route defeniton, please address manually to route %s\n' % (net))
                     else:
-                        net, mask = net.split('/')
-                        net = net + ' ' + prefixToMaskDict[mask]
+                        if "/" in net:
+                            net, mask = net.split('/')
+                            net = net + ' ' + prefixToMaskDict[mask]
+                        else:
+                            log_unhandeled.append(
+                                ' Object type: Route\n Object name: N/A \nLine: ' + line)
+
                 elif line.replace(' ', '')[0:4] == "pool":
                     pool = line[line.index('pool') + 5:]
                     log_write.append(
